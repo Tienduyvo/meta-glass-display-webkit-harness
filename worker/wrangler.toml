@@ -1,0 +1,19 @@
+name = "glass-crud-api"
+main = "src/worker.js"
+compatibility_date = "2024-11-01"
+
+# Serve the frontend (launcher + app configs) from this same Worker — no GitHub Pages needed.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
+
+# D1 (serverless SQLite). Create it once, then paste the id printed by `wrangler d1 create`:
+#   npx wrangler d1 create glass_crud
+[[d1_databases]]
+binding = "DB"
+database_name = "glass_crud"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# NOTE: the API secret is NOT stored in this file. Set it as an encrypted secret:
+#   npx wrangler secret put API_SECRET

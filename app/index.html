@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="description" content="One launcher for many CRUD list apps on Meta Ray-Ban Display + mobile.">
+<meta name="mrbd-web-app-capable" content="yes">
+<title>Meta Glass</title>
+<script>
+/* Layout before first paint: square ~600px (or #glass) -> glasses additive layout; else responsive. */
+(function(){var qs=(location.search+" "+location.hash).toLowerCase();
+ var w=innerWidth||0,h=innerHeight||0,sq=w>=520&&w<=680&&Math.abs(w-h)<90;
+ var glass=/glass/.test(qs)||(!/\b(web|mobile)\b/.test(qs)&&sq);
+ var vp=document.createElement("meta");vp.name="viewport";
+ vp.content=glass?"width=600, height=600, initial-scale=1.0, user-scalable=no":"width=device-width, initial-scale=1.0, viewport-fit=cover";
+ document.head.appendChild(vp);document.documentElement.className=glass?"glass":"web";})();
+</script>
+<style>
+ *{box-sizing:border-box;font-family:system-ui,Arial,sans-serif}button,input{font:inherit}
+ html.glass,html.glass body{margin:0;width:600px;height:600px;overflow:hidden;background:#000}
+ html.glass #app{width:600px;height:600px;color:#fff;padding:20px 24px;position:relative}
+ html.glass .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}
+ html.glass .tile{padding:18px;border:3px solid #222;border-radius:16px;font-size:24px}
+ html.glass .tile.focus{border-color:#e6edf3;background:#0e0e0e}
+ html.glass .tile .ic{font-size:40px}
+ html.glass .row{display:flex;gap:12px;align-items:center;padding:12px 14px;border:3px solid transparent;border-radius:12px}
+ html.glass .row.focus{border-color:#e6edf3;background:#0e0e0e}
+ html.glass .big{font-size:28px;font-weight:800}html.glass .t{font-size:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ html.glass .done .t{text-decoration:line-through;color:#8b98a5}
+ html.glass .foot{position:absolute;left:24px;bottom:14px;font-size:14px;color:#6b7681}
+ html.web,html.web body{margin:0;background:#0b0f14;color:#e6edf3}
+ html.web #app{max-width:640px;margin:0 auto;padding:0 16px 28px}
+ html.web .head{position:sticky;top:0;background:#0b0f14;padding:12px 0;border-bottom:1px solid #1c232b;display:flex;gap:8px;align-items:center;justify-content:space-between}
+ html.web .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-top:12px}
+ html.web .tile{padding:18px;border:1px solid #1c232b;border-radius:16px;background:#11161c;cursor:pointer;text-align:center}
+ html.web .tile .ic{font-size:34px}
+ html.web .row{display:flex;gap:10px;align-items:center;padding:12px;border:1px solid #1c232b;border-radius:12px;margin:8px 0;background:#11161c}
+ html.web .row.done .t{text-decoration:line-through;color:#8b98a5}
+ html.web .big{font-size:22px;font-weight:800;min-width:52px;text-align:right}html.web .t{font-size:16px;flex:1}
+ html.web .iconbtn{border:1px solid #30363d;background:#161b22;color:#e6edf3;border-radius:8px;padding:6px 10px;cursor:pointer}
+ html.web .iconbtn.on{color:#d29922;border-color:#d29922}
+ html.web input{background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:8px;padding:8px;width:100%;margin:6px 0}
+ html.web .addbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}html.web .primary{background:#1f6feb;border:0;color:#fff;border-radius:8px;padding:10px 16px;cursor:pointer}
+ .muted{color:#8b98a5;font-size:12px}#status{font-size:12px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="head"><span style="display:flex;gap:8px;align-items:center"><button id="backbtn" class="iconbtn" style="display:none">‹ Apps</button><b id="title">Meta Glass</b></span><span id="status" class="muted"></span></div>
+  <div id="screen"></div>
+  <div class="foot" id="foot"></div>
+</div>
+<script>
+"use strict";
+var GLASS=document.documentElement.className==="glass";
+var API="",TOKEN="",REG={apps:[]},MODE="launcher",focus=0,view="list";
+var CFG=null,COLL="",QKEY="",CKEY="",items=[];
+
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function load(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
+function setStatus(t){document.getElementById("status").textContent=t;}
+function setFoot(t){document.getElementById("foot").textContent=t;}
+
+/* ---- global credentials (set ONCE for all apps) ---- */
+function readCreds(){
+  var p=new URLSearchParams((location.hash.replace(/^#/,"&")+"&"+location.search.replace(/^\?/,"")).replace(/^&/,""));
+  var a=p.get("api"), t=p.get("t")||p.get("token");
+  if(a){ API=a; save("gc_api",a); }
+  if(t){ TOKEN=t; save("gc_token",t); }
+  if(!API) API=load("gc_api","")||"";
+  if(!TOKEN) TOKEN=load("gc_token","")||"";
+}
+
+/* ================= SETUP ================= */
+function screenSetup(){
+  MODE="setup"; document.getElementById("title").textContent="Setup";
+  var s=document.getElementById("screen");
+  if(GLASS){ s.innerHTML='<div style="font-size:22px;line-height:1.5">One-time setup.<br>Open this launcher on your phone,<br>or register the URL with your API + password in the hash:<br><span class="muted">#api=YOUR_WORKER_URL/api&t=YOUR_PASSWORD</span></div>'; return; }
+  s.innerHTML='<p class="muted">One-time setup — used by every app.</p>'
+    +'<input id="s_api" placeholder="Worker API URL, e.g. https://glass-crud-api.xxx.workers.dev/api" value="'+esc(API)+'">'
+    +'<input id="s_tok" type="password" placeholder="Password (the app password you set on deploy)" value="'+esc(TOKEN)+'">'
+    +'<button class="primary" id="s_save">Save & continue</button>';
+  document.getElementById("s_save").onclick=function(){
+    API=document.getElementById("s_api").value.trim().replace(/\/$/,"");
+    TOKEN=document.getElementById("s_tok").value.trim();
+    save("gc_api",API); save("gc_token",TOKEN); openLauncher();
+  };
+}
+
+/* ================= LAUNCHER ================= */
+async function openLauncher(){
+  MODE="launcher"; view="list"; focus=0; CFG=null;
+  document.getElementById("title").textContent="Apps";
+  if(!API||!TOKEN){ return screenSetup(); }
+  if(!REG.apps.length){ try{ REG=await (await fetch("../apps/registry.json",{cache:"no-store"})).json(); }catch(e){ REG={apps:[]}; } }
+  renderLauncher();
+}
+function renderLauncher(){
+  updateBack(); setStatus(""); setFoot((REG.apps.length||0)+" apps · [S] settings");
+  var s=document.getElementById("screen");
+  s.innerHTML='<div class="grid">'+REG.apps.map(function(a,i){
+    return '<div class="tile'+(i===focus?" focus":"")+'" data-i="'+i+'"><div class="ic">'+esc(a.icon||"▦")+'</div><div>'+esc(a.name)+'</div></div>';
+  }).join("")+'</div>';
+}
+
+/* ================= APP RUNNER ================= */
+async function openApp(idx){
+  var a=REG.apps[idx]; if(!a) return;
+  CFG=await (await fetch(a.config,{cache:"no-store"})).json();
+  MODE="app"; view="list"; focus=0;
+  COLL=CFG.collection; QKEY="gc_queue_"+COLL; CKEY="gc_cache_"+COLL;
+  document.getElementById("title").textContent=CFG.title||a.name;
+  buildAddBar();
+  items=load(CKEY,[]); applySort(); render(); refresh();
+}
+function apiBase(){ return API||CFG.api||""; }
+async function api(method,path,body){
+  try{var r=await fetch(apiBase()+path,{method:method,headers:{"Content-Type":"application/json","Authorization":"Bearer "+TOKEN},body:body?JSON.stringify(body):undefined});
+    if(!r.ok)throw 0;return await r.json();}catch(e){return null;}
+}
+function queuePush(m){var q=load(QKEY,[]);q.push(m);save(QKEY,q);}
+async function flushQueue(){var q=load(QKEY,[]);if(!q.length)return;var left=[];for(const m of q){if(await api(m.method,m.path,m.body)===null)left.push(m);}save(QKEY,left);}
+async function refresh(){await flushQueue();var res=await api("GET","/"+COLL);
+  if(res&&res.items){items=res.items;save(CKEY,items);setStatus("online");}else{items=load(CKEY,[]);setStatus("offline");}
+  if(focus>=items.length)focus=0;applySort();render();}
+function applySort(){var s=(CFG&&CFG.sort)||{key:"created",dir:"desc"};items.sort(function(a,b){var x=a[s.key],y=b[s.key];if(x==null)return 1;if(y==null)return -1;var c=typeof x==="number"?x-y:String(x).localeCompare(String(y));return s.dir==="desc"?-c:c;});}
+function mut(id,p){var it=items.find(i=>i.id===id);if(it)Object.assign(it,p);save(CKEY,items);}
+async function doPatch(id,p){mut(id,p);if(await api("PATCH","/"+COLL+"/"+id,p)===null)queuePush({method:"PATCH",path:"/"+COLL+"/"+id,body:p});render();}
+async function doDelete(id){items=items.filter(i=>i.id!==id);save(CKEY,items);if(await api("DELETE","/"+COLL+"/"+id)===null)queuePush({method:"DELETE",path:"/"+COLL+"/"+id});if(focus>=items.length)focus=Math.max(0,items.length-1);render();}
+async function doAdd(f){var tmp=Object.assign({id:"tmp_"+Date.now(),seen:false,fav:false,created:new Date().toISOString()},f);items.unshift(tmp);save(CKEY,items);applySort();render();var res=await api("POST","/"+COLL,f);if(res&&res.id)tmp.id=res.id,save(CKEY,items);else queuePush({method:"POST",path:"/"+COLL,body:f});}
+function rt(it){return it[CFG.row.title];}function rb(it){return CFG.row.badge?it[CFG.row.badge]:"";}
+function render(){ if(MODE!=="app")return; updateBack(); view==="detail"?renderDetail():renderList(); setFoot((CFG.title||"")+" · "+items.length+" · [←] apps"); }
+function renderList(){var A=CFG.actions||{},s=document.getElementById("screen");
+  var start=GLASS?Math.floor(focus/5)*5:0,slice=GLASS?items.slice(start,start+5):items,html="";
+  if(!GLASS&&A.add)html+=addBarHTML();
+  for(var i=0;i<slice.length;i++){var g=start+i,it=slice[i];
+    html+='<div class="row'+(g===focus?" focus":"")+(it.seen?" done":"")+'" data-i="'+g+'">'
+      +((rb(it)!==""&&rb(it)!=null)?'<div class="big">'+esc(rb(it))+'</div>':'')+'<div class="t">'+esc(rt(it))+'</div>';
+    if(!GLASS){if(A.check)html+='<button class="iconbtn'+(it.seen?" on":"")+'" data-act="check" data-id="'+esc(it.id)+'">✓</button>';
+      if(A.fav)html+='<button class="iconbtn'+(it.fav?" on":"")+'" data-act="fav" data-id="'+esc(it.id)+'">★</button>';
+      if(A.delete)html+='<button class="iconbtn" data-act="del" data-id="'+esc(it.id)+'">🗑</button>';}
+    html+='</div>';}
+  s.innerHTML=html; if(!GLASS&&A.add)wireAddBar();
+}
+function renderDetail(){var it=items[focus]||{},A=CFG.actions||{},html='<button class="iconbtn" data-nav="applist">‹ back</button><div style="margin-top:10px">';
+  (CFG.detail||[]).forEach(k=>html+='<div class="muted">'+esc(k)+'</div><div style="font-size:20px;margin-bottom:8px">'+esc(it[k])+'</div>');
+  if(!GLASS){if(A.check)html+='<button class="primary" data-act="check" data-id="'+esc(it.id)+'">'+(it.seen?"Uncheck":"Check off")+'</button> ';
+    if(A.fav)html+='<button class="iconbtn" data-act="fav" data-id="'+esc(it.id)+'">★ fav</button> ';
+    if(A.delete)html+='<button class="iconbtn" data-act="del" data-id="'+esc(it.id)+'">🗑 delete</button>';}
+  document.getElementById("screen").innerHTML=html+'</div>';
+}
+var ADD_FIELDS=[];
+function buildAddBar(){ADD_FIELDS=(CFG.actions&&CFG.actions.add)?(CFG.fields||[]):[];}
+function addBarHTML(){return '<div class="addbar">'+ADD_FIELDS.map(f=>'<input id="f_'+f.key+'" placeholder="'+esc(f.label||f.key)+'"'+(f.type==="number"?' type="number"':'')+(f.default!=null?' value="'+esc(f.default)+'"':'')+' style="width:auto;flex:1">').join("")+'<button class="primary" id="addbtn">Add</button></div>';}
+function wireAddBar(){var b=document.getElementById("addbtn");if(!b)return;b.onclick=function(){var f={},ok=false;ADD_FIELDS.forEach(x=>{var el=document.getElementById("f_"+x.key),v=el.value;if(x.type==="number")v=v===""?null:Number(v);if(v!==""&&v!=null)ok=true;f[x.key]=v;});if(ok){doAdd(f);ADD_FIELDS.forEach(x=>{if(x.default==null)document.getElementById("f_"+x.key).value="";});}};}
+function act(id,a){var it=items.find(i=>i.id===id);if(a==="check")doPatch(id,{seen:!(it&&it.seen)});else if(a==="fav")doPatch(id,{fav:!(it&&it.fav)});else if(a==="del")doDelete(id);}
+
+function updateBack(){var b=document.getElementById("backbtn");if(b)b.style.display=(MODE==="app")?"inline-block":"none";}
+function contextBack(){ if(MODE==="app"&&view==="detail"){view="list";render();} else if(MODE==="app"){openLauncher();} }
+
+/* ================= input ================= */
+document.getElementById("backbtn").onclick=contextBack;
+document.getElementById("app").addEventListener("click",function(e){
+  if(e.target.closest("#backbtn"))return;
+  var nav=e.target.closest("[data-nav]"); if(nav){contextBack();return;}
+  var b=e.target.closest("[data-act]"); if(b){act(b.getAttribute("data-id"),b.getAttribute("data-act"));return;}
+  if(MODE==="launcher"){var t=e.target.closest(".tile");if(t){openApp(+t.getAttribute("data-i"));return;}}
+  if(MODE==="app"){var r=e.target.closest(".row");if(r){focus=+r.getAttribute("data-i");view="detail";render();}}
+});
+document.addEventListener("keydown",function(e){
+  if(e.key==="s"&&MODE!=="app"){screenSetup();return;}
+  if(MODE==="launcher"){var n=REG.apps.length;if(!n)return;
+    if(e.key==="ArrowRight"||e.key==="ArrowDown"){e.preventDefault();focus=(focus+1)%n;renderLauncher();}
+    else if(e.key==="ArrowLeft"||e.key==="ArrowUp"){e.preventDefault();focus=(focus-1+n)%n;renderLauncher();}
+    else if(e.key==="Enter"){e.preventDefault();openApp(focus);}return;}
+  if(MODE==="app"){var A=CFG&&CFG.actions||{};
+    if(e.key==="ArrowLeft"&&view==="list"){e.preventDefault();openLauncher();return;}
+    if(e.key==="ArrowDown"){e.preventDefault();focus=(focus+1)%Math.max(1,items.length);render();}
+    else if(e.key==="ArrowUp"){e.preventDefault();focus=(focus-1+items.length)%Math.max(1,items.length);render();}
+    else if(e.key==="Enter"){e.preventDefault();view=view==="list"?"detail":"list";render();}
+    else if(e.key==="ArrowLeft"&&view==="detail"){view="list";render();}
+    else if((e.key===" "||e.key==="c")&&items[focus]&&A.check){e.preventDefault();act(items[focus].id,"check");}
+    else if(e.key==="f"&&items[focus]&&A.fav)act(items[focus].id,"fav");
+    else if((e.key==="Delete"||e.key==="Backspace")&&items[focus]&&A.delete){e.preventDefault();act(items[focus].id,"del");}}
+});
+window.addEventListener("online",function(){if(MODE==="app")refresh();});
+
+/* ================= boot ================= */
+(async function(){
+  readCreds();
+  var deep=new URLSearchParams(location.search).get("config");
+  if(!API||!TOKEN){ screenSetup(); return; }
+  try{ REG=await (await fetch("../apps/registry.json",{cache:"no-store"})).json(); }catch(e){ REG={apps:[]}; }
+  if(deep){ REG.apps.unshift({name:"App",icon:"▦",config:deep}); openApp(0); }
+  else openLauncher();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "title": "Buy List",
+  "collection": "buy",
+  "readOnly": false,
+  "fields": [
+    { "key": "name", "label": "Item", "type": "text" },
+    { "key": "qty",  "label": "Qty",  "type": "number", "default": 1 }
+  ],
+  "row":    { "title": "name", "badge": "qty" },
+  "detail": ["name", "qty"],
+  "actions": { "add": true, "check": true, "fav": false, "delete": true },
+  "sort":    { "key": "created", "dir": "desc" }
+}

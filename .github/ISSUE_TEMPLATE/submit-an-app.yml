@@ -1,0 +1,22 @@
+name: Submit an app
+description: Share an app you built with the community catalog.
+title: "[App] "
+labels: ["community-app"]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: App name
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: app.config.json
+      description: Paste your config. NO secrets, URLs or tokens (the API is global, not in the config).
+      render: json
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: "Prefer a pull request? Add `apps/community/<slug>/app.config.json` and open a PR — see CONTRIBUTING.md."

@@ -1,0 +1,21 @@
+# --- Secrets & local config: NEVER commit ---
+*.env
+.env
+*secret*
+*password*
+*token*
+.claude/settings.local.json
+.wrangler/
+worker/.wrangler/
+
+# --- Data / DB / logs (local only) ---
+*.db
+*.db-*
+*.bak
+*.log
+
+# --- Scratch / caches ---
+exports/
+__pycache__/
+*.pyc
+.DS_Store

@@ -1,0 +1,36 @@
+name: Request an app
+description: Ask for a list app (you or an agent can build it).
+title: "[App request] "
+labels: ["app-request"]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: App name
+      placeholder: e.g. Packing list
+    validations:
+      required: true
+  - type: textarea
+    id: purpose
+    attributes:
+      label: What should it track?
+      placeholder: Items to pack, with a category, checkable off
+    validations:
+      required: true
+  - type: textarea
+    id: fields
+    attributes:
+      label: Fields (name + type)
+      placeholder: |
+        name (text)
+        category (text)
+        qty (number)
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - Check-off list (add / check / delete)
+        - Read-only watchlist (mark seen / favorite)
+    validations:
+      required: true

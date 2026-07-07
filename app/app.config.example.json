@@ -1,0 +1,14 @@
+{
+  "_comment": "Schema for one CRUD list app. The launcher renders glasses + mobile from this. The Worker API URL + password are GLOBAL (set once in the launcher), so no 'api' field here.",
+  "title": "My List",
+  "collection": "mylist",
+  "readOnly": false,
+  "fields": [
+    { "key": "name", "label": "Item", "type": "text" },
+    { "key": "qty",  "label": "Qty",  "type": "number", "default": 1 }
+  ],
+  "row":    { "title": "name", "badge": "qty" },
+  "detail": ["name", "qty"],
+  "actions": { "add": true, "check": true, "fav": false, "delete": true },
+  "sort":    { "key": "created", "dir": "desc" }
+}

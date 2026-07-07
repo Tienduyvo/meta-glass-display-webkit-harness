@@ -1,0 +1,14 @@
+{
+  "title": "To-Do",
+  "collection": "todo",
+  "readOnly": false,
+  "fields": [
+    { "key": "task", "label": "Task", "type": "text" },
+    { "key": "priority", "label": "Priorität (1-3)", "type": "number", "default": 2 },
+    { "key": "due", "label": "Fällig am", "type": "text" }
+  ],
+  "row": { "title": "task", "badge": "priority" },
+  "detail": ["task", "priority", "due"],
+  "actions": { "add": true, "check": true, "fav": true, "delete": true },
+  "sort": { "key": "created", "dir": "desc" }
+}
