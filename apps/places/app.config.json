@@ -1,0 +1,14 @@
+{
+  "title": "Places",
+  "collection": "places",
+  "readOnly": false,
+  "fields": [
+    { "key": "name", "label": "Place", "type": "text" },
+    { "key": "location", "label": "Location", "type": "geo" },
+    { "key": "note", "label": "Note", "type": "text" }
+  ],
+  "row": { "title": "name", "badge": "" },
+  "detail": ["name", "location", "note"],
+  "actions": { "add": true, "check": true, "fav": true, "delete": true },
+  "sort": { "key": "created", "dir": "desc" }
+}

@@ -1,0 +1,13 @@
+{
+  "title": "Wallpaper",
+  "collection": "wallpaper",
+  "readOnly": false,
+  "fields": [
+    { "key": "image", "label": "Image", "type": "image" }
+  ],
+  "row": { "title": "image", "badge": "" },
+  "detail": ["image"],
+  "actions": { "add": true, "check": false, "fav": true, "delete": true },
+  "sort": { "key": "created", "dir": "desc" },
+  "fullscreen": true
+}

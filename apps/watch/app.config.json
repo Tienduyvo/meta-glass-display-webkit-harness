@@ -1,0 +1,15 @@
+{
+  "title": "Watch",
+  "collection": "watch",
+  "readOnly": true,
+  "fields": [
+    { "key": "title", "label": "Title", "type": "text" },
+    { "key": "url", "label": "Video", "type": "video" },
+    { "key": "note", "label": "Note", "type": "text" }
+  ],
+  "row": { "title": "title", "badge": "" },
+  "detail": ["title", "url", "note"],
+  "actions": { "add": false, "check": true, "fav": true, "delete": false },
+  "sort": { "key": "created", "dir": "desc" },
+  "refresh": 30
+}

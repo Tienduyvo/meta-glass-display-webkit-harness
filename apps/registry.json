@@ -1,7 +1,8 @@
 {
-  "_comment": "Apps shown in the launcher. Add an entry and its config here (or use tools/new_app.py) — it appears automatically, no new setup. 'config' paths are relative to app/index.html (the launcher).",
+  "_comment": "Apps shown in the launcher. Add an entry and its config here (or use tools/new_app.py) — it appears automatically. Only REGISTERED apps are served; unregistered apps/<slug>/ folders (e.g. places, watch) are inactive reference patterns. 'config' paths are relative to app/index.html.",
   "apps": [
     { "name": "Buy List", "icon": "🛒", "config": "../apps/buy-list/app.config.json" },
-    { "name": "To-Do",    "icon": "✅", "config": "../apps/todo/app.config.json" }
+    { "name": "To-Do",    "icon": "✅", "config": "../apps/todo/app.config.json" },
+    { "name": "Wallpaper","icon": "🖼️", "config": "../apps/wallpaper/app.config.json" }
   ]
 }

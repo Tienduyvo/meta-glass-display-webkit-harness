@@ -10,6 +10,11 @@
       "name": "To-Do",
       "icon": "✅",
       "config": "/apps/todo/app.config.json"
+    },
+    {
+      "name": "Wallpaper",
+      "icon": "🖼️",
+      "config": "/apps/wallpaper/app.config.json"
     }
   ]
 }
