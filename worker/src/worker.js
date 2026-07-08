@@ -2,9 +2,9 @@
 // Collections + items, common flags (seen/fav/deleted), timestamps. Bearer-secret auth.
 //
 // Routes (JSON in/out):
-//   GET    /api/:collection            list items (?since=ISO, ?deleted=1 to include soft-deleted)
+//   GET    /api/:collection            list items (?since=ISO, ?deleted=1, ?limit=N default 200 max 1000)
 //   POST   /api/:collection            create one item (body = your fields; optional "id")
-//   POST   /api/:collection/bulk       upsert many (body {items:[...]}) — bulk import / feed a list
+//   POST   /api/:collection/bulk       upsert many (body {items:[...]}); ?replace=1 replaces the whole feed
 //   PATCH  /api/:collection/:id         update fields and/or flags (seen/fav/deleted)
 //   DELETE /api/:collection/:id         soft-delete (sets deleted=1)
 //   GET    /health                      no auth; returns {ok:true}
@@ -59,27 +59,34 @@ export default {
         if (!includeDeleted) q += " AND deleted=0";
         if (since) { q += " AND updated>?"; args.push(since); }
         q += " ORDER BY updated DESC";
+        let lim = parseInt(url.searchParams.get("limit") || "200", 10);
+        if (!(lim > 0)) lim = 200; if (lim > 1000) lim = 1000;   // protect the glasses' 128MB budget
+        q += " LIMIT " + lim;
         const { results } = await env.DB.prepare(q).bind(...args).all();
         return json({ items: (results || []).map(rowOut) });
       }
 
       // BULK UPSERT (bulk import / feed a read-only list)
       if (request.method === "POST" && sub === "bulk") {
+        const replace = url.searchParams.get("replace") === "1";  // replace the whole feed (drop stale rows)
         const items = Array.isArray(body.items) ? body.items : [];
         const t = nowISO();
-        let n = 0;
+        // Run DELETE (if replacing) + all upserts as one ordered, atomic batch — separate
+        // awaited statements can lose rows on some D1 backends (e.g. local miniflare).
+        const stmts = [];
+        if (replace) stmts.push(env.DB.prepare("DELETE FROM items WHERE collection=?").bind(collection));
         for (const it of items) {
           const id = String(it.id || it.url || crypto.randomUUID());
           const { seen, fav, deleted, id: _i, ...data } = it;
-          await env.DB.prepare(
+          stmts.push(env.DB.prepare(
             `INSERT INTO items (id,collection,data,seen,fav,deleted,created,updated)
              VALUES (?,?,?,?,?,?,?,?)
              ON CONFLICT(id) DO UPDATE SET data=excluded.data, updated=excluded.updated`
           ).bind(id, collection, JSON.stringify(data), seen ? 1 : 0, fav ? 1 : 0,
-                 deleted ? 1 : 0, t, t).run();
-          n++;
+                 deleted ? 1 : 0, t, t));
         }
-        return json({ ok: true, upserted: n });
+        if (stmts.length) await env.DB.batch(stmts);
+        return json({ ok: true, upserted: items.length, replaced: replace });
       }
 
       // CREATE

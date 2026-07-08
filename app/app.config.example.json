@@ -5,10 +5,11 @@
   "readOnly": false,
   "fields": [
     { "key": "name", "label": "Item", "type": "text" },
-    { "key": "qty",  "label": "Qty",  "type": "number", "default": 1 }
+    { "key": "qty",  "label": "Qty",  "type": "number", "default": 1 },
+    { "key": "where", "label": "Location", "type": "geo" }
   ],
   "row":    { "title": "name", "badge": "qty" },
-  "detail": ["name", "qty"],
+  "detail": ["name", "qty", "where"],
   "actions": { "add": true, "check": true, "fav": false, "delete": true },
   "sort":    { "key": "created", "dir": "desc" }
 }
