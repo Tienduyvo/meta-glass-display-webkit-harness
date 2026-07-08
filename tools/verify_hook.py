@@ -50,9 +50,10 @@ def main():
     rel = _rel(ti.get("file_path") or ti.get("path") or "")
 
     is_config = bool(re.match(r"apps/[^/]+/app\.config\.json$", rel))
+    is_page = bool(re.match(r"apps/[^/]+/.+\.html$", rel))  # per-app page endpoint (e.g. control.html)
     is_meta = rel in ("apps/registry.json", "app/index.html",
                       "worker/public/index.html", "worker/src/worker.js")
-    if not (is_config or is_meta):
+    if not (is_config or is_page or is_meta):
         return 0  # not app-relevant -> no-op
 
     py = sys.executable or "python"
@@ -65,7 +66,7 @@ def main():
 
     if _worker_up():
         env = dict(os.environ, GLASS_API="http://localhost:8787/api", GLASS_TOKEN=_dev_token())
-        m = re.match(r"apps/([^/]+)/app\.config\.json$", rel)
+        m = re.match(r"apps/([^/]+)/", rel)
         args = [m.group(1)] if m else []  # one app, or all registered
         r = subprocess.run([py, os.path.join(ROOT, "tools", "flowtest.py")] + args,
                            capture_output=True, text=True, cwd=ROOT, env=env)

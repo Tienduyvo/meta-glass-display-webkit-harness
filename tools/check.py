@@ -36,12 +36,18 @@ def check_launchers():
         except Exception:
             pass
     if not node:
-        print("[i] node not found — skipped launcher JS syntax check"); return
-    for rel in ("app/index.html", "worker/public/index.html"):
+        print("[i] node not found — skipped JS syntax check"); return
+    # the two launchers + any per-app page endpoint (e.g. presentation-timer/control.html)
+    targets = ["app/index.html", "worker/public/index.html"]
+    for p in sorted(glob.glob(os.path.join(ROOT, "apps", "**", "*.html"), recursive=True)):
+        targets.append(os.path.relpath(p, ROOT).replace("\\", "/"))
+    for rel in targets:
         p = os.path.join(ROOT, rel)
         if not os.path.exists(p):
             continue
         js = "\n;\n".join(re.findall(r"<script>(.*?)</script>", open(p, encoding="utf-8").read(), re.S))
+        if not js.strip():
+            continue
         tmp = os.path.join(ROOT, ".check_tmp.js")
         open(tmp, "w", encoding="utf-8").write(js)
         r = subprocess.run([node, "--check", tmp], capture_output=True, text=True)
@@ -49,7 +55,7 @@ def check_launchers():
         ok = r.returncode == 0
         print("[%s] %s script syntax" % ("x" if ok else "!", rel))
         if not ok:
-            fails.append(rel + " JS: " + r.stderr.strip().splitlines()[-1] if r.stderr else rel + " JS error")
+            fails.append(rel + " JS: " + (r.stderr.strip().splitlines()[-1] if r.stderr else "error"))
 
 
 def check_drift():

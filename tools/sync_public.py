@@ -51,6 +51,31 @@ def _read_json(path):
     return json.load(open(path, encoding="utf-8"))
 
 
+# Servable per-app assets for "page apps" (their own HTML endpoint, e.g. the timer's control.html).
+# app.config.json is mirrored separately; dev-only docs (*.md) are deliberately NOT served.
+ASSET_EXTS = (".html", ".css", ".js", ".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico")
+
+
+def asset_files(slug):
+    d = os.path.join(SRC_APPS, slug)
+    if not os.path.isdir(d):
+        return []
+    return sorted(f for f in os.listdir(d)
+                  if os.path.isfile(os.path.join(d, f)) and f.lower().endswith(ASSET_EXTS))
+
+
+def _copy_bytes_if_changed(src, pub, actions, label):
+    with open(src, "rb") as f:
+        data = f.read()
+    if (not os.path.exists(pub)) or open(pub, "rb").read() != data:
+        os.makedirs(os.path.dirname(pub), exist_ok=True)
+        tmp = pub + ".part"
+        with open(tmp, "wb") as f:
+            f.write(data); f.flush(); os.fsync(f.fileno())
+        os.replace(tmp, pub)
+        actions.append("copied " + label)
+
+
 def source_slugs():
     """Slugs REGISTERED in apps/registry.json that also have a config file.
     Unregistered apps/<slug>/ folders are inactive reference patterns — neither
@@ -79,6 +104,21 @@ def drift():
             issues.append(f"{slug}: missing in worker/public")
         elif open(src, encoding="utf-8").read() != open(pub, encoding="utf-8").read():
             issues.append(f"{slug}: config differs from worker/public")
+        # per-app page assets (control.html etc.)
+        assets = asset_files(slug)
+        for fn in assets:
+            ap = os.path.join(PUB_APPS, slug, fn)
+            if not os.path.exists(ap):
+                issues.append(f"{slug}/{fn}: missing in worker/public")
+            elif open(os.path.join(SRC_APPS, slug, fn), "rb").read() != open(ap, "rb").read():
+                issues.append(f"{slug}/{fn}: differs from worker/public")
+        # extra served files not backed by source (e.g. a renamed/removed page)
+        pubdir = os.path.join(PUB_APPS, slug)
+        if os.path.isdir(pubdir):
+            keep = set(assets) | {"app.config.json"}
+            for fn in sorted(os.listdir(pubdir)):
+                if os.path.isfile(os.path.join(pubdir, fn)) and fn not in keep:
+                    issues.append(f"{slug}/{fn}: orphan file in worker/public (not in apps/)")
     # registry
     try:
         want = {"apps": [{"name": a.get("name"), "icon": a.get("icon"),
@@ -112,6 +152,19 @@ def sync(verbose=True):
         if not os.path.exists(pub) or open(pub, encoding="utf-8").read() != text:
             atomic_write(pub, text)
             actions.append(f"copied {slug}/app.config.json")
+        # copy per-app page assets (control.html etc.), and prune served files no longer in source
+        assets = asset_files(slug)
+        for fn in assets:
+            _copy_bytes_if_changed(os.path.join(SRC_APPS, slug, fn),
+                                   os.path.join(PUB_APPS, slug, fn), actions, f"{slug}/{fn}")
+        pubdir = os.path.join(PUB_APPS, slug)
+        if os.path.isdir(pubdir):
+            keep = set(assets) | {"app.config.json"}
+            for fn in sorted(os.listdir(pubdir)):
+                fp = os.path.join(pubdir, fn)
+                if os.path.isfile(fp) and fn not in keep:
+                    os.remove(fp)
+                    actions.append(f"pruned {slug}/{fn}")
 
     # 2) regenerate registry with same-origin (absolute) config paths
     src_reg = _read_json(SRC_REG)

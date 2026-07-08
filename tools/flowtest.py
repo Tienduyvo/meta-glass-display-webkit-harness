@@ -129,6 +129,17 @@ def run_app(slug, base, tok):
     _, res = api("GET", base, tok, "/" + coll)
     check([i.get("id") for i in res.get("items", [])] == ["ftbulk"], "bulk replace persists the pushed items")
 
+    # regression: a bulk UPSERT must "undelete" a soft-deleted row. Push-fed feeds (e.g. the
+    # presentation timer) re-push one id forever; once that id was soft-deleted, a plain upsert
+    # used to leave deleted=1 so GET hid it — "Synced" but nothing shows. See CHANGELOG (2026-07-08).
+    api("POST", base, tok, "/" + coll + "/bulk", {"items": [dict(item, id="ftundel")]})
+    api("DELETE", base, tok, "/" + coll + "/ftundel")
+    _, res = api("GET", base, tok, "/" + coll)
+    check(not any(i.get("id") == "ftundel" for i in res.get("items", [])), "soft-delete hides the row")
+    api("POST", base, tok, "/" + coll + "/bulk", {"items": [dict(item, id="ftundel")]})
+    _, res = api("GET", base, tok, "/" + coll)
+    check(any(i.get("id") == "ftundel" for i in res.get("items", [])), "bulk upsert un-deletes a soft-deleted row")
+
     api("POST", base, tok, "/" + coll + "/bulk?replace=1", {"items": []})  # cleanup
     return R
 
