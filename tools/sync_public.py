@@ -52,12 +52,19 @@ def _read_json(path):
 
 
 def source_slugs():
-    if not os.path.isdir(SRC_APPS):
+    """Slugs REGISTERED in apps/registry.json that also have a config file.
+    Unregistered apps/<slug>/ folders are inactive reference patterns — neither
+    served into worker/public nor shown in the launcher (register them to activate)."""
+    try:
+        reg = json.load(open(SRC_REG, encoding="utf-8"))
+    except Exception:
         return []
     out = []
-    for name in sorted(os.listdir(SRC_APPS)):
-        if os.path.isfile(os.path.join(SRC_APPS, name, "app.config.json")):
-            out.append(name)
+    for a in reg.get("apps", []):
+        m = re.search(r"apps/([^/]+)/", a.get("config", ""))
+        slug = m.group(1) if m else None
+        if slug and os.path.isfile(os.path.join(SRC_APPS, slug, "app.config.json")):
+            out.append(slug)
     return out
 
 

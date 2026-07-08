@@ -1,18 +1,25 @@
 # --- Secrets & local config: NEVER commit ---
 *.env
 .env
+push.env
 *secret*
 *password*
 *token*
 .claude/settings.local.json
 .wrangler/
 worker/.wrangler/
+.dev.vars
+worker/.dev.vars
 
 # --- Data / DB / logs (local only) ---
 *.db
 *.db-*
 *.bak
 *.log
+
+# --- Generated (may contain the password) ---
+qr.png
+qr.svg
 
 # --- Scratch / caches ---
 exports/
