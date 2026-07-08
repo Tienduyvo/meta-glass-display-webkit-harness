@@ -7,7 +7,7 @@
   ],
   "row": { "title": "image", "badge": "" },
   "detail": ["image"],
-  "actions": { "add": true, "check": false, "fav": true, "delete": true },
+  "actions": { "add": true, "check": false, "fav": false, "delete": true },
   "sort": { "key": "created", "dir": "desc" },
   "fullscreen": true
 }

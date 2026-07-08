@@ -16,13 +16,16 @@
 <style>
  *{box-sizing:border-box;font-family:system-ui,Arial,sans-serif}button,input{font:inherit}
  html.glass,html.glass body{margin:0;width:600px;height:600px;overflow:hidden;background:#000}
+ html.glass :focus,html.glass :focus-visible{outline:none}
  html.glass #app{width:600px;height:600px;color:#fff;padding:20px 24px;position:relative}
  html.glass .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}
- html.glass .tile{padding:18px;border:3px solid #3a3d42;border-radius:16px;font-size:24px;background:#1C1E21}
- html.glass .tile.focus{border-color:#fff;background:#26292e}
- html.glass .tile .ic{font-size:40px}
- html.glass .row{display:flex;gap:12px;align-items:center;padding:12px 14px;border:3px solid #3a3d42;border-radius:12px;background:#1C1E21}
- html.glass .row.focus{border-color:#fff;background:#26292e}
+ html.glass .tile{position:relative;overflow:hidden;padding:20px 16px;border:2px solid #34373c;border-radius:18px;font-size:24px;background:#1C1E21;transition:box-shadow .12s ease,border-color .12s ease}
+ html.glass .tile::before{content:"";position:absolute;top:0;left:0;right:0;height:5px;background:var(--acc,#4aa3ff)}
+ html.glass .tile.focus{border-color:var(--acc,#fff);background:#26292e;box-shadow:0 0 0 3px var(--acc,#fff),0 0 26px -4px var(--acc,#fff)}
+ html.glass .tile .ic{font-size:46px;line-height:1.1}
+ html.glass .tile .tname{margin-top:6px;font-size:22px;font-weight:700}
+ html.glass .row{position:relative;overflow:hidden;display:flex;gap:12px;align-items:center;padding:12px 14px;border:2px solid #34373c;border-radius:14px;background:#1C1E21;transition:box-shadow .12s ease,border-color .12s ease}
+ html.glass .row.focus{border-color:#fff;background:#26292e;box-shadow:0 0 0 2px #fff,0 0 20px -6px #fff}
  html.glass .big{font-size:28px;font-weight:800}html.glass .t{font-size:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
  html.glass .done .t{text-decoration:line-through;color:#B0B3B8}
  html.glass .foot{position:absolute;left:24px;bottom:14px;font-size:14px;color:#B0B3B8}
@@ -30,8 +33,11 @@
  html.web #app{max-width:640px;margin:0 auto;padding:0 16px 28px}
  html.web .head{position:sticky;top:0;background:#0b0f14;padding:12px 0;border-bottom:1px solid #1c232b;display:flex;gap:8px;align-items:center;justify-content:space-between}
  html.web .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-top:12px}
- html.web .tile{padding:18px;border:1px solid #1c232b;border-radius:16px;background:#11161c;cursor:pointer;text-align:center}
- html.web .tile .ic{font-size:34px}
+ html.web .tile{position:relative;overflow:hidden;padding:22px 16px 18px;border:1px solid #1c232b;border-radius:16px;background:#11161c;cursor:pointer;text-align:center;transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease}
+ html.web .tile::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:var(--acc,#4aa3ff)}
+ html.web .tile:hover,html.web .tile.focus{border-color:var(--acc,#4aa3ff);box-shadow:0 0 0 2px var(--acc,#4aa3ff),0 10px 28px -12px var(--acc,#4aa3ff);transform:translateY(-2px)}
+ html.web .tile .ic{font-size:40px}
+ html.web .tile .tname{margin-top:8px;font-size:15px;font-weight:600;color:#e6edf3}
  html.web .row{display:flex;gap:10px;align-items:center;padding:12px;border:1px solid #1c232b;border-radius:12px;margin:8px 0;background:#11161c}
  html.web .row.done .t{text-decoration:line-through;color:#8b98a5}
  html.web .big{font-size:22px;font-weight:800;min-width:52px;text-align:right}html.web .t{font-size:16px;flex:1}
@@ -40,6 +46,9 @@
  html.web .iconbtn.on{color:#d29922;border-color:#d29922}
  html.web input{background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:8px;padding:8px;width:100%;margin:6px 0}
  html.web .addbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}html.web .primary{background:#1f6feb;border:0;color:#fff;border-radius:8px;padding:10px 16px;cursor:pointer}
+ html.web .dropzone{border:1px dashed #30363d;border-radius:8px;padding:12px;text-align:center;color:#8b98a5;font-size:12px;cursor:pointer;margin:6px 0}
+ html.web .dropzone.over{border-color:#1f6feb;color:#e6edf3;background:#0d1117}
+ html.web .imgprev{max-height:120px;max-width:100%;border-radius:8px;margin:4px 0;display:none}
  .muted{color:#8b98a5;font-size:12px}#status{font-size:12px}
 </style>
 </head>
@@ -53,7 +62,7 @@
 "use strict";
 var GLASS=document.documentElement.className==="glass";
 var API="",TOKEN="",REG={apps:[]},MODE="launcher",focus=0,view="list";
-var CFG=null,COLL="",QKEY="",CKEY="",items=[],DACTS=[],dfocus=0,refreshTimer=null,tickTimer=null;
+var CFG=null,CFGPATH="",COLL="",QKEY="",CKEY="",items=[],DACTS=[],dfocus=0,refreshTimer=null,tickTimer=null;
 
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
@@ -92,16 +101,22 @@ async function openLauncher(){
   if(!REG.apps.length){ try{ REG=await (await fetch("/apps/registry.json",{cache:"no-store"})).json(); }catch(e){ REG={apps:[]}; } }
   renderLauncher();
 }
+var ACCENTS=["#4aa3ff","#41d18b","#ffb454","#c78bff","#ff6b81","#38d0d6","#f4d35e"];
+function accentFor(a,i){return (a&&a.accent)||ACCENTS[i%ACCENTS.length];}
 function renderLauncher(){
-  updateBack(); setStatus(""); setFoot((REG.apps.length||0)+" apps · [S] settings");
+  updateBack(); setStatus("");
+  document.getElementById("foot").innerHTML=(REG.apps.length||0)+' apps · <a href="#" data-settings style="color:#4aa3ff;text-decoration:none">⚙ settings</a>';
   document.getElementById("screen").innerHTML='<div class="grid">'+REG.apps.map(function(a,i){
-    return '<div class="tile'+(i===focus?" focus":"")+'" data-i="'+i+'"><div class="ic">'+esc(a.icon||"▦")+'</div><div>'+esc(a.name)+'</div></div>';
+    return '<div class="tile'+(i===focus?" focus":"")+'" data-i="'+i+'" style="--acc:'+accentFor(a,i)+'"><div class="ic">'+esc(a.icon||"▦")+'</div><div class="tname">'+esc(a.name)+'</div></div>';
   }).join("")+'</div>';
 }
 
 async function openApp(idx){
   var a=REG.apps[idx]; if(!a) return;
-  CFG=await (await fetch(a.config,{cache:"no-store"})).json();
+  CFGPATH=a.config; CFG=await (await fetch(a.config,{cache:"no-store"})).json();
+  // Page app (its own HTML endpoint, e.g. the timer control): on phone/desktop open it directly,
+  // carrying creds so it's zero-setup. On the glasses fall through to the read-only display.
+  if(!GLASS && CFG.control){ location.href=controlURL()+"#api="+encodeURIComponent(API)+"&t="+encodeURIComponent(TOKEN); return; }
   MODE="app"; view="list"; focus=0;
   COLL=CFG.collection; QKEY="gc_queue_"+COLL; CKEY="gc_cache_"+COLL;
   document.getElementById("title").textContent=CFG.title||a.name;
@@ -146,6 +161,7 @@ function stopTick(){if(tickTimer){clearInterval(tickTimer);tickTimer=null;}}
 function startTick(){stopTick();if(isCd())tickTimer=setInterval(tickCd,1000);}
 function tickCd(){if(MODE!=="app"||view!=="list"||!isCd())return;var b=CFG.row.badge,amb=CFG.row.amber,rows=document.querySelectorAll("#screen .row");for(var i=0;i<rows.length;i++){var it=items[+rows[i].getAttribute("data-i")];if(!it)continue;var big=rows[i].querySelector(".big");if(big)big.textContent=cdTime(it[b]);var t=rows[i].querySelector(".t");if(t)t.textContent=cdPhase(it[b],it[amb]);rows[i].classList.toggle("over",cdMs(it[b])<=0);}}
 function render(){ if(MODE!=="app")return; updateBack(); view==="detail"?renderDetail():renderList(); setFoot((CFG.title||"")+" · "+items.length+" · [←] apps"); }
+function controlURL(){return CFG.control?CFGPATH.replace(/[^/]+$/,"")+CFG.control:"";}
 function renderList(){var A=CFG.actions||{},s=document.getElementById("screen");
   var start=GLASS?Math.floor(focus/5)*5:0,slice=GLASS?items.slice(start,start+5):items,html="";
   if(!GLASS&&A.add)html+=addBarHTML();
@@ -177,8 +193,9 @@ function renderFullscreen(it,A){var f=(CFG.fields||[]).find(function(x){return x
   document.getElementById("screen").innerHTML=
     '<div style="position:absolute;inset:0;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden">'
     +(url?'<img src="'+esc(url)+'" alt="" style="width:100%;height:100%;object-fit:contain">':'<span class="muted">no image</span>')
-    +'</div><div style="position:absolute;left:12px;top:12px;z-index:2"><button class="iconbtn" data-nav="applist">‹ back</button></div>'
-    +'<div style="position:absolute;left:0;right:0;bottom:12px;z-index:2;text-align:center">'+ov+'</div>';}
+    +'</div>'
+    +(GLASS?'':'<div style="position:absolute;left:12px;top:12px;z-index:2"><button class="iconbtn" data-nav="applist">‹ back</button></div>')
+    +(ov?'<div style="position:absolute;left:0;right:0;bottom:12px;z-index:2;text-align:center">'+ov+'</div>':'');}
 function renderDetail(){var it=items[focus]||{},A=CFG.actions||{};
   if(CFG.fullscreen)return renderFullscreen(it,A);
   var html='<button class="iconbtn" data-nav="applist">‹ back</button><div style="margin-top:10px">';
@@ -199,16 +216,43 @@ function renderDetail(){var it=items[focus]||{},A=CFG.actions||{};
 var ADD_FIELDS=[];
 function buildAddBar(){ADD_FIELDS=(CFG.actions&&CFG.actions.add)?(CFG.fields||[]):[];}
 function fieldType(k){var f=(CFG.fields||[]).find(function(x){return x.key===k;});return f?f.type:"text";}
+function isFinePointer(){return !!(window.matchMedia&&matchMedia("(pointer:fine)").matches);}
 function addBarHTML(){return '<div class="addbar">'+ADD_FIELDS.map(function(f){
   if(f.type==="geo")return '<input id="f_'+f.key+'" placeholder="'+esc(f.label||f.key)+' (lat,lon)" readonly style="width:auto;flex:1"><button class="iconbtn" data-geo="'+f.key+'" title="Use my location">📍</button>';
+  if(f.type==="image"){var fine=isFinePointer();
+    return '<div style="flex:1;min-width:200px">'
+      +'<input id="f_'+f.key+'" placeholder="'+(fine?"Paste an image URL / link":"Paste an image or a link")+'" style="width:100%">'
+      +(fine?'<div class="dropzone" id="drop_'+f.key+'">Drag &amp; drop an image here, or paste it</div>':'')
+      +'<img class="imgprev" id="prev_'+f.key+'" alt="">'
+      +'</div>';}
   return '<input id="f_'+f.key+'" placeholder="'+esc(f.label||f.key)+'"'+(f.type==="number"?' type="number"':'')+(f.default!=null?' value="'+esc(f.default)+'"':'')+' style="width:auto;flex:1">';
 }).join("")+'<button class="primary" id="addbtn">Add</button></div>';}
+/* Downscale an image File/Blob to a JPEG data URL so it stays small enough for D1. */
+function fileToDataURL(file,cb){if(!file||!/^image\//.test(file.type||"")){cb(null);return;}
+  var fr=new FileReader();fr.onload=function(){var img=new Image();
+    img.onload=function(){var max=1280,w=img.width,h=img.height,sc=Math.min(1,max/Math.max(w,h)),c=document.createElement("canvas");
+      c.width=Math.round(w*sc);c.height=Math.round(h*sc);c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+      try{cb(c.toDataURL("image/jpeg",0.85));}catch(e){cb(fr.result);}};
+    img.onerror=function(){cb(fr.result);};img.src=fr.result;};
+  fr.onerror=function(){cb(null);};fr.readAsDataURL(file);}
+function wireImageField(key){var inp=document.getElementById("f_"+key),dz=document.getElementById("drop_"+key),pv=document.getElementById("prev_"+key);
+  function preview(u){if(!pv)return;if(u){pv.src=u;pv.style.display="block";}else pv.style.display="none";}
+  function setVal(u){if(!u)return;inp.value=u;preview(u);}
+  if(inp){inp.addEventListener("input",function(){preview(inp.value);});
+    inp.addEventListener("paste",function(e){var its=(e.clipboardData||{}).items||[];for(var i=0;i<its.length;i++){if(/^image\//.test(its[i].type)){e.preventDefault();fileToDataURL(its[i].getAsFile(),setVal);return;}}});}
+  var zones=[dz,inp];zones.forEach(function(z){if(!z)return;
+    ["dragenter","dragover"].forEach(function(ev){z.addEventListener(ev,function(e){e.preventDefault();if(dz)dz.classList.add("over");});});
+    ["dragleave","dragend"].forEach(function(ev){z.addEventListener(ev,function(e){if(dz)dz.classList.remove("over");});});
+    z.addEventListener("drop",function(e){e.preventDefault();if(dz)dz.classList.remove("over");
+      var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
+      if(f)fileToDataURL(f,setVal);else{var u=e.dataTransfer&&e.dataTransfer.getData("text");if(u)setVal(u);}});});}
 function captureGeo(key){var el=document.getElementById("f_"+key);if(!el)return;
   if(!navigator.geolocation){setStatus("no geolocation");return;}
   setStatus("locating…");
   navigator.geolocation.getCurrentPosition(function(p){el.value=p.coords.latitude.toFixed(5)+","+p.coords.longitude.toFixed(5);setStatus("located");},
     function(){setStatus("location denied");},{enableHighAccuracy:true,timeout:10000,maximumAge:0});}
-function wireAddBar(){var b=document.getElementById("addbtn");if(!b)return;b.onclick=function(){var f={},ok=false;ADD_FIELDS.forEach(x=>{var el=document.getElementById("f_"+x.key),v=el.value;if(x.type==="number")v=v===""?null:Number(v);if(v!==""&&v!=null)ok=true;f[x.key]=v;});if(ok){doAdd(f);ADD_FIELDS.forEach(x=>{if(x.default==null)document.getElementById("f_"+x.key).value="";});}};}
+function wireAddBar(){ADD_FIELDS.forEach(function(x){if(x.type==="image")wireImageField(x.key);});
+  var b=document.getElementById("addbtn");if(!b)return;b.onclick=function(){var f={},ok=false;ADD_FIELDS.forEach(x=>{var el=document.getElementById("f_"+x.key),v=el.value;if(x.type==="number")v=v===""?null:Number(v);if(v!==""&&v!=null)ok=true;f[x.key]=v;});if(ok){doAdd(f);ADD_FIELDS.forEach(x=>{if(x.default==null){document.getElementById("f_"+x.key).value="";var pv=document.getElementById("prev_"+x.key);if(pv)pv.style.display="none";}});}};}
 function act(id,a){var it=items.find(i=>i.id===id);if(a==="check")doPatch(id,{seen:!(it&&it.seen)});else if(a==="fav")doPatch(id,{fav:!(it&&it.fav)});else if(a==="del")doDelete(id);}
 function updateBack(){var b=document.getElementById("backbtn");if(b)b.style.display=(MODE==="app")?"inline-block":"none";}
 function contextBack(){ if(MODE==="app"&&view==="detail"){view="list";render();} else if(MODE==="app"){openLauncher();} }
@@ -216,6 +260,7 @@ function contextBack(){ if(MODE==="app"&&view==="detail"){view="list";render();}
 document.getElementById("backbtn").onclick=contextBack;
 document.getElementById("app").addEventListener("click",function(e){
   if(e.target.closest("#backbtn"))return;
+  var st=e.target.closest("[data-settings]"); if(st){e.preventDefault();screenSetup();return;}
   var geo=e.target.closest("[data-geo]"); if(geo){captureGeo(geo.getAttribute("data-geo"));return;}
   var nav=e.target.closest("[data-nav]"); if(nav){contextBack();return;}
   var b=e.target.closest("[data-act]"); if(b){act(b.getAttribute("data-id"),b.getAttribute("data-act"));return;}
