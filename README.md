@@ -15,6 +15,12 @@ app. No framework, no build step: apps are just JSON config, served as one stati
 backed by a tiny serverless CRUD API — both from a single Cloudflare Worker. Ship as many apps as
 you want from one launcher.
 
+**One config, two surfaces.** Because you **can't type on the glasses**, every app is built to run
+on **phone/desktop *and* glasses in parallel**: you add and edit items on the phone or desktop
+(full keyboard), and **view + check them off hands‑free on the glasses**. You develop and test the
+whole thing in a normal browser; the glasses layout renders from the exact same config (600×600
+additive display, arrow/D‑pad nav), following Meta's display guidelines.
+
 > **This is the kit, not a finished product.** You (the builder) set it up once. The people who
 > *use* your finished apps never touch GitHub — they just open a link (or you add it to your
 > glasses). See *Who does what* below.
@@ -46,7 +52,11 @@ feed, a reading list.
 
 Every one of these is just an `app.config.json`. Tell the agent *"build a to‑do list"* or run
 `python tools/new_app.py` — and it shows up in the launcher next to the others, no new setup.
-Ships with two working examples: **buy-list** (full CRUD) and **to-do** (task · priority · due).
+Active in the launcher: **buy-list** (full CRUD), **to-do** (task · priority · due), and
+**wallpaper** (an `image` gallery). Also in `apps/` as **unregistered reference patterns** (copy
+into a slug + add to `apps/registry.json` to activate): **places** (a 📍 GPS `geo` field) and
+**watch** (a read-only, auto-refreshing feed fed from your PC via `tools/push.py`, with ▶ Open
+video/link items). Only registered apps are served.
 
 ---
 
@@ -114,7 +124,8 @@ scope — that would need multi‑user accounts / hosted SaaS.)
 - **Set up once (per device):** open the Worker URL on the phone; it asks once for your **password**
   (stored in the browser — the API URL is the site itself). For glasses, register one URL that
   carries the login in the hash: `https://<worker>.workers.dev/#glass&t=<password>` (no typing on
-  the glasses).
+  the glasses). Or run `python tools/qr.py "Meta Glass" "<that URL>"` and **scan the QR with your
+  phone to add it in one tap** (opens the Meta AI app via its deep link).
 - **Launcher → pick an app → use it.** Glasses controls: **▲▼** move · **Enter** open/detail ·
   **◀** back · **Space/c** check · **f** favorite · **Del** delete. Phone: tap tiles/rows, use the
   ✓ / ★ / 🗑 buttons and the add bar. **Offline‑tolerant** — edits queue and sync when online.
@@ -125,8 +136,8 @@ scope — that would need multi‑user accounts / hosted SaaS.)
 worker/          Cloudflare Worker: CRUD API on D1 + serves the frontend from worker/public
   public/        the launcher (index.html) + synced app configs the Worker serves
 app/             local-dev launcher (one HTML file; you type the Worker URL)
-apps/            your apps: <name>/app.config.json + registry.json (buy-list, to-do ship as examples)
-tools/           status.py · new_app.py · sync_public.py · export_app.py
+apps/            your apps: <name>/app.config.json + registry.json (only registered ones are served; places/watch are inactive patterns)
+tools/           status.py · new_app.py · sync_public.py · export_app.py · push.py · qr.py · check.py
 runners/         deploy_worker.bat · new_app.bat · redeploy.bat · export_app.bat · setup_repo.bat
 ```
 
