@@ -45,7 +45,10 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>⏱️ Presentation Timer · Control</h1>
+  <div style="display:flex;align-items:center;gap:10px;margin:4px 0 14px">
+    <a href="/" style="color:var(--dim);text-decoration:none;font-size:13px;border:1px solid var(--line);border-radius:10px;padding:6px 10px;white-space:nowrap">‹ Apps</a>
+    <h1 style="margin:0">⏱️ Presentation Timer · Control</h1>
+  </div>
 
   <div id="card" class="clock state-idle">
     <div id="time">15:00</div>
@@ -83,7 +86,7 @@
       display refreshes every ~3s.</div>
   </fieldset>
 
-  <fieldset>
+  <fieldset id="backend" hidden>
     <legend>Backend (once)</legend>
     <label for="api">Worker URL</label>
     <input id="api" placeholder="https://your-worker.workers.dev" autocomplete="off">
@@ -104,6 +107,16 @@ var ls = {
   get:function(k,d){ try{ var v=localStorage.getItem("pt_"+k); return v==null?d:v; }catch(e){ return d; } },
   set:function(k,v){ try{ localStorage.setItem("pt_"+k, v); }catch(e){} }
 };
+
+// Zero-setup when opened from the launcher: adopt api/token passed in the URL (#api=..&t=..).
+(function(){ try{
+  var p=new URLSearchParams((location.hash.replace(/^#/,"&")+"&"+location.search.replace(/^\?/,"")).replace(/^&/,""));
+  var a=p.get("api"), t=p.get("t")||p.get("token");
+  // The launcher passes its API base WITH a trailing /api; this page appends /api/<collection> itself,
+  // so strip a trailing /api (and slashes) to avoid a doubled /api/api path.
+  if(a) ls.set("api", a.replace(/\/+$/,"").replace(/\/api$/,""));
+  if(t) ls.set("tok", t);
+}catch(e){} })();
 
 // ---- single source of truth: the deadline value in the DB ----
 // dl > 1e11  -> epoch-ms end time (RUNNING);  dl <= 0 -> negative of the frozen remaining ms
@@ -198,6 +211,11 @@ $("fullscreen").addEventListener("click", function(){
 Array.prototype.forEach.call(document.querySelectorAll("[data-adj]"), function(b){
   b.addEventListener("click", function(){ adjust(parseInt(b.getAttribute("data-adj"),10)); });
 });
+
+// Creds arrive from the launcher (URL) or localStorage, so the control works directly — only
+// reveal the Backend fieldset as a fallback when they're missing (opened standalone).
+(function(){ var have=($("api").value||"").trim() && ($("tok").value||"").trim();
+  if(!have) $("backend").hidden=false; })();
 
 dl = -(durSeconds()*1000); render(); pull();
 </script>

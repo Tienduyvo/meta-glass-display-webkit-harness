@@ -12,5 +12,6 @@
   "detail": ["label", "deadline"],
   "actions": { "add": false, "check": false, "fav": false, "delete": false },
   "sort":   { "key": "created", "dir": "desc" },
-  "refresh": 3
+  "refresh": 3,
+  "control": "control.html"
 }
