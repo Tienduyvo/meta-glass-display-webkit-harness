@@ -81,7 +81,8 @@ export default {
           stmts.push(env.DB.prepare(
             `INSERT INTO items (id,collection,data,seen,fav,deleted,created,updated)
              VALUES (?,?,?,?,?,?,?,?)
-             ON CONFLICT(id) DO UPDATE SET data=excluded.data, updated=excluded.updated`
+             ON CONFLICT(id) DO UPDATE SET data=excluded.data, seen=excluded.seen,
+               fav=excluded.fav, deleted=excluded.deleted, updated=excluded.updated`
           ).bind(id, collection, JSON.stringify(data), seen ? 1 : 0, fav ? 1 : 0,
                  deleted ? 1 : 0, t, t));
         }
