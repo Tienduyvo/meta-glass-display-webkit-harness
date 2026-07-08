@@ -45,9 +45,9 @@ is an inactive **reference pattern** (e.g. `places`, `watch`) — copy/register 
 in one message, then execute build → verify → deploy → hand-off **without pausing to ask again**.
 Mid-loop questions are the anti-pattern: a user who approved the run wants to walk away, not babysit
 prompts. Concretely:
-- Ask (at most once, up front) only for a decision that changes the *testable objective* and can't be
-  defaulted — plus a single go-ahead that covers the whole run **including the deploy**. Everything
-  else: state an assumption and proceed. Don't re-confirm.
+- Open with the **Define round** below (2–3 important questions + the per-surface plan) and a single
+  go-ahead that covers the whole run **including the deploy**. Everything smaller: state an
+  assumption and proceed. Don't re-confirm.
 - Deploy with **`python tools/deploy.py`** — it preflights, front-loads the only interactive steps
   (login, app password) when they're missing, and otherwise runs **fully unattended**. It reuses an
   existing D1 (never re-creates), writes the `database_id` itself, and skips anything already done.
@@ -58,21 +58,34 @@ prompts. Concretely:
   then run to completion. (After publishing, revert `worker/wrangler.toml`'s `database_id` to the
   placeholder so no personal id ships — `deploy.py` re-links it on the next run.)
 
-### Define first — then build. But asking is NOT the loop; don't over-ask.
-A precise, *testable* definition is the cheap reward the loop needs — but the loop is
-**build → evaluate → fix**, not the questions. **Over-asking is anti-loop:** the whole point is
-that you can be wrong *cheaply* (the evaluation catches it), so you don't front-load every decision
-as a question. Being wrong and getting redirected is fine — it's the loop working.
-1. **Ask at most 1–2 questions — often zero.** Only ask when the answer (a) changes the *testable
-   objective* and (b) can't be safely defaulted (e.g. *"is this actually for the glasses or
-   phone-only?"*, *"what does one item hold?"*). If a sensible default exists, **state it as an
-   assumption — don't ask.** Run the *"does it belong on the glasses?"* test yourself.
-2. **Converge — don't interrogate.** Never stack a second round of options or re-open a decision;
-   **one confirmation at most.** More than ~2 questions means you're spec'ing, not looping.
-3. **Write acceptance criteria** to `apps/<slug>/acceptance.md` (given/when/then), **stating your
-   assumptions**, and build the **smallest evaluable increment first** — not every feature at once.
-4. **Then build** (below), matching the criteria. If an assumption was wrong, the user redirects —
-   cheap. Don't try to prevent every mistake by asking.
+### Define first — 2–3 important questions, then a per-surface plan, then build
+**Don't run with the idea.** A precise, *testable* definition and an explicit surface plan are what
+the loop needs before any config exists — a wrong objective wastes the whole run, and "which surface
+does what" is exactly where glasses apps go wrong. This Define round happens **once, up front** (it
+*is* the front-loaded ask above); after the go-ahead, run to completion without pausing.
+1. **Ask 2–3 important definition questions** — in one message, then wait for the answers. Pick the
+   ones that change the *testable objective*; typically:
+   - *What does one item hold — what's the data, and where does it come from?*
+   - *What's the consuming moment — hands-busy / eyes-up (glasses) or phone-in-hand? Run the
+     "does it belong on the glasses?" test **with** the user, don't assume it.*
+   - *What's the key action in that moment (glance a number, check off, open a link, trace)?*
+   Skip a question only when the user's request already answers it; anything smaller than these
+   becomes a stated assumption, not a fourth question.
+2. **Lay out the plan per surface** — one or two lines each on what that surface shows and does, or
+   an explicit *"skipped, because…"*. The surfaces have different jobs (capability table below):
+   - **Glasses** (600×600 additive display, D-pad/Enter only, no typing, black = transparent):
+     the glanceable / hands-free view — what a row shows, what Enter opens, what stays big + bright.
+   - **Mobile (phone)**: touch-first authoring and control on the go — the add bar or a `control`
+     page; capture (GPS 📍, camera, paste).
+   - **Desktop (PC/agent)**: keyboard/bulk input, drag-and-drop, heavy compute feeding a
+     `readOnly` display via `tools/push.py`.
+   Present the plan with the answers folded in, get the **one go-ahead** (covering the deploy),
+   and don't re-open decisions mid-run.
+3. **Write the acceptance criteria + the surface plan** to `apps/<slug>/acceptance.md`
+   (given/when/then per surface, assumptions stated), and build the **smallest evaluable
+   increment first** — not every feature at once.
+4. **Then build** (below), matching the criteria. If an answer redirects you later, that's the loop
+   working — adjust and re-verify; it's cheap.
 5. **Evaluate (the reward):** `python tools/evaluate.py <slug>` against a local `wrangler dev`.
    Two halves: the **hard gate** (`flowtest` — automated data/CRUD flow) **plus the soft gate** —
    you open the running app, **screenshot** the key state, and judge each acceptance line a script
@@ -143,10 +156,24 @@ Video **playback** is device-limited (128MB, additive display) — treat `video`
   Add a Web App): `https://<worker>.workers.dev/#glass&t=<password>` (password in the URL → no typing).
   New apps appear inside the launcher later — no new URL.
 
-## D) Share & grow (the FINAL step — only when they're almost done)
-This whole step is **your job in the conversation**, not the app's — the launcher has no star/share
-UI. Bring it up **last**, once their app is live and published. Don't push it earlier — someone
-still setting up doesn't care about sharing yet.
+## D) Test → learn → harden → grow (the FINAL step — only when they're almost done)
+
+**Testing-driven improvement.** Once the app is live, invite the user to actually *use* it — real
+usage on a real phone/glasses finds what the automated gates can't. For each thing that breaks or
+confuses them, fix it, then sort the fix into one of two lanes:
+- **App-specific** ("this app needs a control page") → just fix the app. Does **not** touch the kit.
+- **Kit-level** (a launcher/worker/tooling bug that would bite every fork) → after fixing, leave a
+  regression **gate** so it can't recur (prefer a `tools/flowtest.py` assertion or a `tools/check.py`
+  rule; UI-only checks go as human-eyeballed lines in `acceptance.md`/`verdict.md`), and log it in
+  **`CHANGELOG.md`**. This repo is a **template others fork**, so kit-level changes are upstream for
+  everyone — keep them human-reviewed, never silently self-mutating from one session.
+
+This closes the loop: **build → verify → deploy → user tests → sort findings → harden the kit (gated)
+→ share.** The star ask below grows reach; the testing feedback grows quality — capture both here.
+
+**Share & grow.** This part is **your job in the conversation**, not the app's — the launcher has no
+star/share UI. Bring it up **last**, once their app is live and published. Don't push it earlier —
+someone still setting up doesn't care about sharing yet.
 
 **Close the loop with one report — don't hand-assemble it.** Run **`python tools/report.py <slug>`**
 and read it back: it consolidates (1) features confirmed (from the config), (2) the spec
