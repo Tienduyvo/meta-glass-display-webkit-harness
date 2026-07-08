@@ -1,11 +1,13 @@
 # Meta Glass Display WebKit Harness
 
-<!-- Community CTAs: ⭐ Star · 🍴 Fork · 📋 Use this template · 💡 Request an app.
-     Replace OWNER after your first push (or gh will show the right repo in the buttons). -->
-[![Star](https://img.shields.io/github/stars/OWNER/meta-glass-display-webkit-harness?style=social)](https://github.com/OWNER/meta-glass-display-webkit-harness/stargazers)
-· [Fork](https://github.com/OWNER/meta-glass-display-webkit-harness/fork)
-· [Use this template](https://github.com/OWNER/meta-glass-display-webkit-harness/generate)
-· [Request an app](https://github.com/OWNER/meta-glass-display-webkit-harness/issues/new?template=request-an-app.yml)
+<!-- Badges/links point at Tienduyvo/… — if you reuse this template, swap in your GitHub user. -->
+[![CI](https://github.com/Tienduyvo/meta-glass-display-webkit-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/Tienduyvo/meta-glass-display-webkit-harness/actions/workflows/ci.yml)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
+[![Star](https://img.shields.io/github/stars/Tienduyvo/meta-glass-display-webkit-harness?style=social)](https://github.com/Tienduyvo/meta-glass-display-webkit-harness/stargazers)
+· [Fork](https://github.com/Tienduyvo/meta-glass-display-webkit-harness/fork)
+· [Use this template](https://github.com/Tienduyvo/meta-glass-display-webkit-harness/generate)
+· [Request an app](https://github.com/Tienduyvo/meta-glass-display-webkit-harness/issues/new?template=request-an-app.yml)
 
 A **starter kit for building your own tiny CRUD list apps** that run on Meta Ray‑Ban Display
 glasses and phones — shopping lists, to‑do lists, packing lists, watchlists, whatever you like.
@@ -137,7 +139,8 @@ worker/          Cloudflare Worker: CRUD API on D1 + serves the frontend from wo
   public/        the launcher (index.html) + synced app configs the Worker serves
 app/             local-dev launcher (one HTML file; you type the Worker URL)
 apps/            your apps: <name>/app.config.json + registry.json (only registered ones are served; places/watch are inactive patterns)
-tools/           status.py · new_app.py · sync_public.py · export_app.py · push.py · qr.py · check.py
+tools/           status.py · new_app.py · sync_public.py · push.py · qr.py · export_app.py
+                 check.py · flowtest.py · evaluate.py  (the define→test→verify build loop)
 runners/         deploy_worker.bat · new_app.bat · redeploy.bat · export_app.bat · setup_repo.bat
 ```
 

@@ -1,0 +1,42 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# The verify gate, enforced on the shared repo: static checks + the user-flow
+# assertions (flowtest) against a local Worker (wrangler dev on an ephemeral D1).
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Static checks (configs parse, launcher JS syntax, apps↔public in sync)
+        run: python tools/check.py
+
+      - name: Start local Worker (wrangler dev, ephemeral local D1)
+        working-directory: worker
+        run: |
+          echo "API_SECRET=citest" > .dev.vars
+          npx --yes wrangler d1 execute glass_crud --local --file=schema.sql
+          npx --yes wrangler dev --local --port 8787 &
+          for i in $(seq 1 40); do
+            if curl -sf http://localhost:8787/health >/dev/null; then echo "worker ready"; break; fi
+            sleep 2
+          done
+          curl -sf http://localhost:8787/health
+
+      - name: Flow tests (the runtime reward — user-flow assertions per app)
+        env:
+          GLASS_API: http://localhost:8787/api
+          GLASS_TOKEN: citest
+        run: python tools/flowtest.py
