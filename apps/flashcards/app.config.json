@@ -1,0 +1,15 @@
+{
+  "title": "Flashcards",
+  "collection": "flashcards",
+  "readOnly": false,
+  "fields": [
+    { "key": "front", "label": "Front (prompt)", "type": "text" },
+    { "key": "back",  "label": "Back (answer)",  "type": "text" },
+    { "key": "topic", "label": "Topic",          "type": "text", "default": "General" }
+  ],
+  "row":    { "title": "topic", "badge": "front" },
+  "detail": ["front", "back", "topic"],
+  "actions": { "add": true, "check": true, "fav": true, "delete": true },
+  "sort":    { "key": "created", "dir": "desc" },
+  "refresh": 30
+}

@@ -1,0 +1,16 @@
+{
+  "title": "Stencil",
+  "collection": "stencil",
+  "readOnly": false,
+  "fields": [
+    { "key": "image", "label": "Stencil", "type": "image" },
+    { "key": "label", "label": "Name",    "type": "text" }
+  ],
+  "row":    { "title": "image", "badge": "label" },
+  "detail": ["image"],
+  "actions": { "add": true, "check": false, "fav": false, "delete": true },
+  "sort":   { "key": "created", "dir": "desc" },
+  "fullscreen": true,
+  "refresh": 3,
+  "control": "control.html"
+}

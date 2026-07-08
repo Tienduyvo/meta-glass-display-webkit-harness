@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stencil — Control</title>
+<style>
+  :root { --bg:#0b0d10; --panel:#15181d; --line:#262b33; --ink:#e8ecf1; --dim:#8b94a1;
+          --green:#1db954; --red:#ff4d4f; --accent:#3b82f6; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  .wrap { max-width:560px; margin:0 auto; padding:16px; }
+  h1 { font-size:15px; font-weight:600; letter-spacing:.02em; color:var(--dim); margin:0; text-transform:uppercase; }
+  .preview { position:relative; border-radius:18px; overflow:hidden; border:1px solid var(--line); background:#000; }
+  .preview canvas { display:block; width:100%; height:auto; }
+  .preview .tag { position:absolute; left:10px; top:8px; font-size:11px; color:var(--dim); letter-spacing:.05em; text-transform:uppercase; }
+  .tabs { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin:12px 0 0; }
+  .tabs button { font:inherit; font-weight:600; font-size:15px; padding:11px 8px; border-radius:12px;
+    border:1px solid var(--line); background:#1c2027; color:var(--dim); cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .tabs button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .shapes { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-top:12px; }
+  .shapes button { font-size:24px; padding:12px 4px; border-radius:12px; border:1px solid var(--line);
+    background:#1c2027; color:var(--ink); cursor:pointer; }
+  .shapes button.on { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent); }
+  fieldset { border:1px solid var(--line); border-radius:14px; margin:14px 0 0; padding:10px 14px 14px; }
+  legend { color:var(--dim); font-size:12px; text-transform:uppercase; letter-spacing:.05em; padding:0 6px; }
+  label { display:block; font-size:13px; color:var(--dim); margin:10px 0 5px; }
+  input[type=text],input[type=password] { width:100%; font:inherit; font-size:16px; padding:11px 12px; border-radius:11px;
+    border:1px solid var(--line); background:#0f1216; color:var(--ink); }
+  input[type=range] { width:100%; }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .colors { display:flex; gap:10px; margin-top:6px; }
+  .colors button { width:38px; height:38px; border-radius:50%; border:2px solid var(--line); cursor:pointer; }
+  .colors button.on { border-color:#fff; box-shadow:0 0 0 2px #fff; }
+  .send { display:grid; grid-template-columns:2fr 1fr; gap:10px; margin:14px 0 0; }
+  .send input { min-width:0; }
+  button.primary { font:inherit; font-weight:600; font-size:16px; padding:12px; border-radius:12px;
+    border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; }
+  button.primary:active { transform:translateY(1px); }
+  .status { margin-top:12px; font-size:13px; color:var(--dim); text-align:center; min-height:18px; }
+  .status b { color:var(--ink); font-weight:600; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; background:var(--dim); }
+  .ok .dot { background:var(--green); } .err .dot { background:var(--red); }
+  .hint { font-size:12px; color:var(--dim); margin-top:8px; line-height:1.5; }
+  .saved { list-style:none; margin:8px 0 0; padding:0; }
+  .saved li { display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); }
+  .saved li:last-child { border-bottom:0; }
+  .saved img { width:44px; height:44px; border-radius:8px; background:#000; object-fit:contain; }
+  .saved .nm { flex:1; font-size:14px; }
+  .saved button { border:1px solid var(--line); background:transparent; color:var(--dim); border-radius:9px;
+    padding:6px 10px; cursor:pointer; font-size:13px; }
+  .drop { border:1px dashed var(--line); border-radius:12px; padding:14px; text-align:center; color:var(--dim);
+    font-size:13px; cursor:pointer; margin-top:12px; }
+  .drop.over { border-color:var(--accent); color:var(--ink); }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div style="display:flex;align-items:center;gap:10px;margin:4px 0 14px">
+    <a href="/" style="color:var(--dim);text-decoration:none;font-size:13px;border:1px solid var(--line);border-radius:10px;padding:6px 10px;white-space:nowrap">‹ Apps</a>
+    <h1>✏️ Stencil · Control</h1>
+  </div>
+
+  <div class="preview">
+    <canvas id="cv" width="600" height="600"></canvas>
+    <span class="tag">glasses preview — black is transparent</span>
+  </div>
+
+  <div class="tabs">
+    <button id="tab_shape" class="on">Shapes</button>
+    <button id="tab_text">Text</button>
+    <button id="tab_photo">Photo</button>
+  </div>
+
+  <div id="pane_shape">
+    <div class="shapes" id="shapelib"></div>
+  </div>
+
+  <div id="pane_text" hidden>
+    <label for="txt">Word / letters to trace</label>
+    <input type="text" id="txt" placeholder="ABC" autocomplete="off" maxlength="24">
+  </div>
+
+  <div id="pane_photo" hidden>
+    <div class="drop" id="drop">Tap to choose a photo — or drag &amp; drop / paste one.<br>
+      It is converted to traceable line art (edges only).</div>
+    <input type="file" id="file" accept="image/*" hidden>
+    <label for="edge">Edge detail</label>
+    <input type="range" id="edge" min="20" max="140" value="70">
+  </div>
+
+  <fieldset>
+    <legend>Look</legend>
+    <div class="row2">
+      <div>
+        <label for="width">Line width</label>
+        <input type="range" id="width" min="2" max="14" value="6">
+      </div>
+      <div>
+        <label for="scale">Size</label>
+        <input type="range" id="scale" min="30" max="100" value="85">
+      </div>
+    </div>
+    <label>Line color (bright reads best on the additive display)</label>
+    <div class="colors" id="colors"></div>
+  </fieldset>
+
+  <div class="send">
+    <input type="text" id="name" placeholder="Name (e.g. Star)" autocomplete="off">
+    <button class="primary" id="send">Send to glasses</button>
+  </div>
+  <div id="status" class="status"><span class="dot"></span>Pick a shape, then send</div>
+  <div class="hint">On the glasses: open <b>Stencil</b>, Enter on the top row — the outline floats
+    on your paper. Keep your head still and trace. New sends appear there within ~3&nbsp;s.</div>
+
+  <fieldset>
+    <legend>On the glasses now</legend>
+    <ul class="saved" id="saved"><li style="border:0;color:var(--dim)">Loading…</li></ul>
+  </fieldset>
+
+  <fieldset id="backend" hidden>
+    <legend>Backend (once)</legend>
+    <label for="api">Worker URL</label>
+    <input type="text" id="api" placeholder="https://your-worker.workers.dev" autocomplete="off">
+    <label for="tok">App password</label>
+    <input type="password" id="tok" placeholder="your API_SECRET" autocomplete="off">
+    <div class="hint">Same URL + password as the launcher. Stored only in this browser.</div>
+  </fieldset>
+</div>
+
+<script>
+"use strict";
+var COLLECTION = "stencil";
+var $ = function(id){ return document.getElementById(id); };
+var ls = {
+  get:function(k,d){ try{ var v=localStorage.getItem("st_"+k); return v==null?d:v; }catch(e){ return d; } },
+  set:function(k,v){ try{ localStorage.setItem("st_"+k, v); }catch(e){} }
+};
+
+// Zero-setup when opened from the launcher: adopt api/token passed in the URL (#api=..&t=..).
+(function(){ try{
+  var p=new URLSearchParams((location.hash.replace(/^#/,"&")+"&"+location.search.replace(/^\?/,"")).replace(/^&/,""));
+  var a=p.get("api"), t=p.get("t")||p.get("token");
+  if(a) ls.set("api", a.replace(/\/+$/,"").replace(/\/api$/,""));
+  if(t) ls.set("tok", t);
+}catch(e){} })();
+
+var cv = $("cv"), ctx = cv.getContext("2d");
+var MODE = "shape", SHAPE = "circle", PHOTO = null; // PHOTO = downscaled ImageData of the source
+var COLORS = ["#ffffff","#4dff7c","#41e0ff","#ffcf4d"];
+var color = COLORS[0];
+
+/* ---------- shape library: each draws centered in a cx,cy,r space ---------- */
+function poly(n, rot){ return function(c,x,y,r){ c.beginPath();
+  for(var i=0;i<n;i++){ var a=rot+i*2*Math.PI/n; c[i?"lineTo":"moveTo"](x+r*Math.cos(a), y+r*Math.sin(a)); }
+  c.closePath(); }; }
+function star(pts, inner){ return function(c,x,y,r){ c.beginPath();
+  for(var i=0;i<pts*2;i++){ var a=-Math.PI/2+i*Math.PI/pts, rr=i%2?r*inner:r;
+    c[i?"lineTo":"moveTo"](x+rr*Math.cos(a), y+rr*Math.sin(a)); }
+  c.closePath(); }; }
+var SHAPES = {
+  circle:   { ic:"○", draw:function(c,x,y,r){ c.beginPath(); c.arc(x,y,r,0,2*Math.PI); } },
+  square:   { ic:"□", draw:function(c,x,y,r){ var s=r*1.6; c.beginPath(); c.rect(x-s/2,y-s/2,s,s); } },
+  triangle: { ic:"△", draw:poly(3,-Math.PI/2) },
+  diamond:  { ic:"◇", draw:poly(4,-Math.PI/2) },
+  pentagon: { ic:"⬠", draw:poly(5,-Math.PI/2) },
+  hexagon:  { ic:"⬡", draw:poly(6,0) },
+  star:     { ic:"☆", draw:star(5,.42) },
+  heart:    { ic:"♡", draw:function(c,x,y,r){ y+=r*.12; c.beginPath(); c.moveTo(x,y+r*.85);
+      c.bezierCurveTo(x-r*1.7,y-r*.35, x-r*.75,y-r*1.25, x,y-r*.45);
+      c.bezierCurveTo(x+r*.75,y-r*1.25, x+r*1.7,y-r*.35, x,y+r*.85); c.closePath(); } },
+  moon:     { ic:"☾", draw:function(c,x,y,r){ c.beginPath(); c.arc(x,y,r,Math.PI*.42,Math.PI*1.58);
+      c.arc(x+r*.55,y,r*.72,Math.PI*1.4,Math.PI*.6,true); c.closePath(); } },
+  arrow:    { ic:"➤", draw:function(c,x,y,r){ var w=r*.4; c.beginPath(); c.moveTo(x-r,y-w); c.lineTo(x+r*.25,y-w);
+      c.lineTo(x+r*.25,y-r*.75); c.lineTo(x+r,y); c.lineTo(x+r*.25,y+r*.75); c.lineTo(x+r*.25,y+w);
+      c.lineTo(x-r,y+w); c.closePath(); } },
+  spiral:   { ic:"@", draw:function(c,x,y,r){ c.beginPath(); for(var a=0;a<=Math.PI*8;a+=.1){
+      var rr=r*a/(Math.PI*8); c[a?"lineTo":"moveTo"](x+rr*Math.cos(a), y+rr*Math.sin(a)); } } },
+  flower:   { ic:"✿", draw:function(c,x,y,r){ c.beginPath(); for(var i=0;i<6;i++){ var a=i*Math.PI/3;
+      c.moveTo(x,y); c.bezierCurveTo(x+r*Math.cos(a-.55)*1.05, y+r*Math.sin(a-.55)*1.05,
+        x+r*Math.cos(a+.55)*1.05, y+r*Math.sin(a+.55)*1.05, x, y); }
+      c.moveTo(x+r*.16,y); c.arc(x,y,r*.16,0,2*Math.PI); } },
+  house:    { ic:"⌂", draw:function(c,x,y,r){ var s=r*1.5; c.beginPath(); c.moveTo(x-s/2,y+s/2); c.lineTo(x-s/2,y-s*.1);
+      c.lineTo(x,y-s*.75); c.lineTo(x+s/2,y-s*.1); c.lineTo(x+s/2,y+s/2); c.closePath();
+      c.moveTo(x-s*.12,y+s/2); c.lineTo(x-s*.12,y+s*.08); c.lineTo(x+s*.12,y+s*.08); c.lineTo(x+s*.12,y+s/2); } },
+  grid:     { ic:"#", draw:function(c,x,y,r){ var s=r*1.7, n=4, st=s/n; c.beginPath();
+      for(var i=0;i<=n;i++){ c.moveTo(x-s/2+i*st,y-s/2); c.lineTo(x-s/2+i*st,y+s/2);
+        c.moveTo(x-s/2,y-s/2+i*st); c.lineTo(x+s/2,y-s/2+i*st); } } },
+  lines:    { ic:"≡", draw:function(c,x,y,r){ var s=r*1.7, n=6; c.beginPath();
+      for(var i=0;i<=n;i++){ c.moveTo(x-s/2,y-s/2+i*s/n); c.lineTo(x+s/2,y-s/2+i*s/n); } } },
+  face:     { ic:"☺", draw:function(c,x,y,r){ c.beginPath(); c.ellipse(x,y,r*.75,r,0,0,2*Math.PI); // head oval
+      c.moveTo(x-r*.75,y); c.lineTo(x+r*.75,y);                                 // eye line
+      c.moveTo(x-r*.45,y-r*.02); c.ellipse(x-r*.3,y-r*.02,r*.15,r*.08,0,0,2*Math.PI); // guide eyes
+      c.moveTo(x+r*.45,y-r*.02); c.ellipse(x+r*.3,y-r*.02,r*.15,r*.08,0,0,2*Math.PI);
+      c.moveTo(x,y); c.lineTo(x,y+r*.45);                                        // nose line
+      c.moveTo(x-r*.3,y+r*.6); c.quadraticCurveTo(x,y+r*.75,x+r*.3,y+r*.6); } }  // mouth
+};
+
+/* ---------- render the 600x600 stencil (what the glasses will show) ---------- */
+function lineW(){ return +$("width").value; }
+function scaleR(){ return (+$("scale").value/100) * 280; }
+function paintBase(){ ctx.fillStyle="#000"; ctx.fillRect(0,0,600,600);
+  ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=lineW();
+  ctx.lineJoin="round"; ctx.lineCap="round"; }
+function renderShape(){ paintBase(); SHAPES[SHAPE].draw(ctx,300,300,scaleR()); ctx.stroke(); }
+function renderText(){ paintBase();
+  var t=($("txt").value||"ABC"), size=560*(+$("scale").value/100);
+  ctx.font="700 "+size+"px system-ui, Arial, sans-serif";
+  while(size>20 && ctx.measureText(t).width>540){ size-=8; ctx.font="700 "+size+"px system-ui, Arial, sans-serif"; }
+  ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.strokeText(t,300,310,560); }
+function renderPhoto(){ paintBase();
+  if(!PHOTO){ ctx.font="24px system-ui"; ctx.textAlign="center"; ctx.fillText("choose a photo below",300,300); return; }
+  var w=PHOTO.width, h=PHOTO.height, thr=160-+$("edge").value; // slider up = more edges
+  var src=PHOTO.data, out=ctx.createImageData(600,600), od=out.data;
+  var sc=(+$("scale").value/100), dw=Math.round(w*sc), dh=Math.round(h*sc);
+  var ox=Math.round((600-dw)/2), oy=Math.round((600-dh)/2);
+  var cr=parseInt(color.slice(1,3),16), cg=parseInt(color.slice(3,5),16), cb=parseInt(color.slice(5,7),16);
+  function lum(x,y){ x=x<0?0:(x>=w?w-1:x); y=y<0?0:(y>=h?h-1:y); var i=(y*w+x)*4;
+    return .299*src[i]+.587*src[i+1]+.114*src[i+2]; }
+  for(var dy=0;dy<dh;dy++){ var sy=Math.round(dy/sc);
+    for(var dx=0;dx<dw;dx++){ var sx=Math.round(dx/sc);
+      // Sobel gradient magnitude at the source pixel
+      var gx=-lum(sx-1,sy-1)-2*lum(sx-1,sy)-lum(sx-1,sy+1)+lum(sx+1,sy-1)+2*lum(sx+1,sy)+lum(sx+1,sy+1);
+      var gy=-lum(sx-1,sy-1)-2*lum(sx,sy-1)-lum(sx+1,sy-1)+lum(sx-1,sy+1)+2*lum(sx,sy+1)+lum(sx+1,sy+1);
+      if(Math.sqrt(gx*gx+gy*gy)>thr){ var px=dx+ox, py=dy+oy;
+        if(px>=0&&px<600&&py>=0&&py<600){ var o=(py*600+px)*4; od[o]=cr; od[o+1]=cg; od[o+2]=cb; od[o+3]=255; } } } }
+  ctx.putImageData(out,0,0);
+}
+function render(){ MODE==="shape"?renderShape():MODE==="text"?renderText():renderPhoto(); }
+
+/* ---------- photo intake: downscale to <=300px so Sobel stays fast ---------- */
+function loadPhoto(file){ if(!file || !/^image\//.test(file.type||"")) return;
+  var fr=new FileReader(); fr.onload=function(){ var img=new Image();
+    img.onload=function(){ var max=300, sc=Math.min(1,max/Math.max(img.width,img.height));
+      var c=document.createElement("canvas"); c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc);
+      var cx2=c.getContext("2d"); cx2.drawImage(img,0,0,c.width,c.height);
+      PHOTO=cx2.getImageData(0,0,c.width,c.height); setMode("photo"); };
+    img.src=fr.result; };
+  fr.readAsDataURL(file); }
+
+/* ---------- tabs / library / look controls ---------- */
+function setMode(m){ MODE=m;
+  ["shape","text","photo"].forEach(function(k){ $("tab_"+k).classList.toggle("on",k===m); $("pane_"+k).hidden=(k!==m); });
+  render(); }
+$("tab_shape").onclick=function(){ setMode("shape"); };
+$("tab_text").onclick=function(){ setMode("text"); };
+$("tab_photo").onclick=function(){ setMode("photo"); };
+
+Object.keys(SHAPES).forEach(function(k){
+  var b=document.createElement("button"); b.textContent=SHAPES[k].ic; b.title=k;
+  b.className=k===SHAPE?"on":""; b.onclick=function(){ SHAPE=k;
+    Array.prototype.forEach.call($("shapelib").children,function(x){ x.className=x.title===k?"on":""; });
+    setMode("shape"); };
+  $("shapelib").appendChild(b);
+});
+COLORS.forEach(function(cl,i){
+  var b=document.createElement("button"); b.style.background=cl; b.className=i?"":"on";
+  b.onclick=function(){ color=cl;
+    Array.prototype.forEach.call($("colors").children,function(x){ x.className=x===b?"on":""; });
+    render(); };
+  $("colors").appendChild(b);
+});
+["width","scale","edge"].forEach(function(id){ $(id).addEventListener("input",render); });
+$("txt").addEventListener("input",function(){ if(MODE!=="text")setMode("text"); else render(); });
+
+$("drop").onclick=function(){ $("file").click(); };
+$("file").addEventListener("change",function(){ loadPhoto($("file").files[0]); });
+["dragenter","dragover"].forEach(function(ev){ $("drop").addEventListener(ev,function(e){ e.preventDefault(); $("drop").classList.add("over"); }); });
+["dragleave","dragend"].forEach(function(ev){ $("drop").addEventListener(ev,function(){ $("drop").classList.remove("over"); }); });
+$("drop").addEventListener("drop",function(e){ e.preventDefault(); $("drop").classList.remove("over");
+  loadPhoto(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]); });
+document.addEventListener("paste",function(e){ var its=(e.clipboardData||{}).items||[];
+  for(var i=0;i<its.length;i++){ if(/^image\//.test(its[i].type)){ loadPhoto(its[i].getAsFile()); return; } } });
+
+/* ---------- backend ---------- */
+function setStatus(kind, html){ var el=$("status"); el.className="status "+kind; el.innerHTML='<span class="dot"></span>'+html; }
+function apiBase(){ return ($("api").value||"").trim().replace(/\/+$/,""); }
+function hdrs(){ return { "Content-Type":"application/json", "Authorization":"Bearer "+($("tok").value||"").trim() }; }
+function defaultName(){ return MODE==="shape"?SHAPE:(MODE==="text"?($("txt").value||"text"):"photo"); }
+
+async function send(){
+  var base=apiBase();
+  if(!base||!($("tok").value||"").trim()){ $("backend").hidden=false; setStatus("err","Enter Worker URL + password first"); return; }
+  var label=($("name").value||"").trim()||defaultName();
+  setStatus("","Sending…");
+  try{
+    var r=await fetch(base+"/api/"+COLLECTION,{ method:"POST", headers:hdrs(),
+      body:JSON.stringify({ label:label, image:cv.toDataURL("image/png") }) });
+    if(r.ok){ setStatus("ok","<b>"+label.replace(/[&<>]/g,"")+"</b> is on the glasses (top of the list)"); loadSaved(); }
+    else setStatus("err","Rejected ("+r.status+") — check the password");
+  }catch(e){ setStatus("err","Offline — could not reach the Worker"); }
+}
+$("send").onclick=send;
+
+async function loadSaved(){
+  var base=apiBase(); if(!base||!($("tok").value||"").trim()) return;
+  var ul=$("saved");
+  try{
+    var r=await fetch(base+"/api/"+COLLECTION,{ headers:hdrs() }); if(!r.ok) throw 0;
+    var items=((await r.json()).items||[]);
+    if(!items.length){ ul.innerHTML='<li style="border:0;color:var(--dim)">Nothing yet — send a stencil above.</li>'; return; }
+    ul.innerHTML="";
+    items.forEach(function(it){
+      var li=document.createElement("li"), img=document.createElement("img"),
+          nm=document.createElement("span"), del=document.createElement("button");
+      if(/^data:image\//.test(it.image||"")) img.src=it.image;
+      nm.className="nm"; nm.textContent=it.label||"(unnamed)";
+      del.textContent="✕"; del.title="Remove from glasses";
+      del.onclick=async function(){
+        try{ await fetch(base+"/api/"+COLLECTION+"/"+encodeURIComponent(it.id),{ method:"DELETE", headers:hdrs() }); }catch(e){}
+        loadSaved(); };
+      li.appendChild(img); li.appendChild(nm); li.appendChild(del); ul.appendChild(li);
+    });
+  }catch(e){ ul.innerHTML='<li style="border:0;color:var(--dim)">Could not load — check backend settings.</li>'; }
+}
+
+/* ---------- wiring + persistence ---------- */
+["api","tok"].forEach(function(id){
+  $(id).value = ls.get(id, "");
+  $(id).addEventListener("input", function(){ ls.set(id, $(id).value); });
+});
+(function(){ var have=($("api").value||"").trim() && ($("tok").value||"").trim();
+  if(!have) $("backend").hidden=false; })();
+
+render(); loadSaved();
+</script>
+</body>
+</html>

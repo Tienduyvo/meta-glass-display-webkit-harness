@@ -20,6 +20,16 @@
       "name": "Presentation Timer",
       "icon": "⏱️",
       "config": "/apps/presentation-timer/app.config.json"
+    },
+    {
+      "name": "Flashcards",
+      "icon": "🧪",
+      "config": "/apps/flashcards/app.config.json"
+    },
+    {
+      "name": "Stencil",
+      "icon": "✏️",
+      "config": "/apps/stencil/app.config.json"
     }
   ]
 }
