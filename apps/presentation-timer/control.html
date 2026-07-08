@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Presentation Timer — Control</title>
+<style>
+  :root { --bg:#0b0d10; --panel:#15181d; --line:#262b33; --ink:#e8ecf1; --dim:#8b94a1;
+          --green:#1db954; --amber:#f5b301; --red:#ff4d4f; --accent:#3b82f6; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  .wrap { max-width:560px; margin:0 auto; padding:16px; }
+  h1 { font-size:15px; font-weight:600; letter-spacing:.02em; color:var(--dim); margin:4px 0 14px; text-transform:uppercase; }
+  .clock { text-align:center; padding:22px 12px 10px; border-radius:18px; background:var(--panel);
+    border:1px solid var(--line); }
+  #time { font-variant-numeric:tabular-nums; font-weight:700; line-height:1;
+    font-size:clamp(64px, 22vw, 132px); letter-spacing:-.02em; }
+  #phase { margin-top:10px; font-size:20px; font-weight:600; }
+  .state-green #time,.state-green #phase { color:var(--green); }
+  .state-amber #time,.state-amber #phase { color:var(--amber); }
+  .state-red   #time,.state-red   #phase { color:var(--red); }
+  .state-idle  #time { color:var(--ink); } .state-idle #phase { color:var(--dim); }
+  .btns { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:14px 0; }
+  .btns .full { grid-column:1 / -1; }
+  button { font:inherit; font-weight:600; font-size:17px; padding:15px 12px; border-radius:14px;
+    border:1px solid var(--line); background:#1c2027; color:var(--ink); cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  button:active { transform:translateY(1px); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.ghost { background:transparent; color:var(--dim); }
+  .adjust { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px; }
+  .adjust button { font-size:15px; padding:12px 6px; }
+  fieldset { border:1px solid var(--line); border-radius:14px; margin:14px 0 0; padding:12px 14px 16px; }
+  legend { color:var(--dim); font-size:12px; text-transform:uppercase; letter-spacing:.05em; padding:0 6px; }
+  label { display:block; font-size:13px; color:var(--dim); margin:10px 0 5px; }
+  input { width:100%; font:inherit; font-size:16px; padding:11px 12px; border-radius:11px;
+    border:1px solid var(--line); background:#0f1216; color:var(--ink); }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .status { margin-top:12px; font-size:13px; color:var(--dim); text-align:center; min-height:18px; }
+  .status b { color:var(--ink); font-weight:600; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; background:var(--dim); }
+  .ok .dot { background:var(--green); } .err .dot { background:var(--red); } .off .dot { background:var(--amber); }
+  .hint { font-size:12px; color:var(--dim); margin-top:8px; line-height:1.5; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>⏱️ Presentation Timer · Control</h1>
+
+  <div id="card" class="clock state-idle">
+    <div id="time">15:00</div>
+    <div id="phase">Ready</div>
+  </div>
+
+  <div class="btns">
+    <button id="startPause" class="primary full">Start</button>
+    <button id="reset" class="ghost">Reset</button>
+    <button id="fullscreen" class="ghost">Fullscreen</button>
+  </div>
+
+  <div class="adjust">
+    <button data-adj="-60">−1:00</button>
+    <button data-adj="-15">−0:15</button>
+    <button data-adj="15">+0:15</button>
+    <button data-adj="60">+1:00</button>
+  </div>
+
+  <fieldset>
+    <legend>Talk</legend>
+    <label for="label">Title (shown on the glasses)</label>
+    <input id="label" placeholder="My talk" autocomplete="off">
+    <div class="row2">
+      <div>
+        <label for="dur">Length (mm:ss or minutes)</label>
+        <input id="dur" placeholder="15:00" inputmode="text" autocomplete="off">
+      </div>
+      <div>
+        <label for="amber">“Wrap up” at (min left)</label>
+        <input id="amber" placeholder="2" inputmode="decimal" autocomplete="off">
+      </div>
+    </div>
+    <div class="hint">Set the length, then press <b>Start</b>. The big clock ticks here; the glasses
+      display refreshes every ~3s.</div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Backend (once)</legend>
+    <label for="api">Worker URL</label>
+    <input id="api" placeholder="https://your-worker.workers.dev" autocomplete="off">
+    <label for="tok">App password</label>
+    <input id="tok" type="password" placeholder="your API_SECRET" autocomplete="off">
+    <div class="hint">Same URL + password you use in the launcher. Stored only in this browser
+      (localStorage) and sent to your Worker — never committed.</div>
+  </fieldset>
+
+  <div id="status" class="status off"><span class="dot"></span>Not pushed yet</div>
+</div>
+
+<script>
+"use strict";
+var COLLECTION = "presentation_timer";
+var $ = function(id){ return document.getElementById(id); };
+var ls = {
+  get:function(k,d){ try{ var v=localStorage.getItem("pt_"+k); return v==null?d:v; }catch(e){ return d; } },
+  set:function(k,v){ try{ localStorage.setItem("pt_"+k, v); }catch(e){} }
+};
+
+// ---- single source of truth: the deadline value in the DB ----
+// dl > 1e11  -> epoch-ms end time (RUNNING);  dl <= 0 -> negative of the frozen remaining ms
+// (PAUSED/READY). Phone AND glasses both read and write this — neither owns a private clock, so they
+// can't drift or clobber. This page writes on every action and polls to adopt glasses actions.
+var dl = 0, lastPushed = null, lastActionAt = 0;
+
+function durSeconds(){
+  var s=($("dur").value||"15:00").trim();
+  if(s.indexOf(":")>=0){ var p=s.split(":"); return (parseInt(p[0]||"0",10)*60)+(parseInt(p[1]||"0",10)); }
+  var m=parseFloat(s); return isFinite(m)? Math.round(m*60) : 900;
+}
+function amberSeconds(){ var m=parseFloat(($("amber").value||"2").trim()); return isFinite(m)? Math.round(m*60):120; }
+function msLeft(){ return dl>1e11 ? dl-Date.now() : -dl; }
+function running(){ return dl>1e11; }
+function fmt(ms){ var neg=ms<0, t=Math.round(Math.abs(ms)/1000), m=Math.floor(t/60), s=t%60; return (neg?"-":"")+m+":"+(s<10?"0":"")+s; }
+function phaseCls(ms){ if(ms<=0) return "red"; if(ms<=amberSeconds()*1000) return "amber"; return "green"; }
+function phaseLabel(ms){
+  if(running()) return ms<=0?"🔴 OVER":(ms<=amberSeconds()*1000?"🟡 Wrap up":"🟢 On pace");
+  if(ms<=0) return "🔴 OVER";
+  return ms===durSeconds()*1000 ? "🟢 Ready" : "⏸ Paused";
+}
+
+function render(){
+  var ms=msLeft();
+  $("time").textContent = fmt(ms);
+  $("card").className = "clock " + (running()||ms<durSeconds()*1000 ? "state-"+phaseCls(ms) : "state-idle");
+  $("phase").textContent = phaseLabel(ms);
+  $("startPause").textContent = running() ? "Pause" : (ms>0 && ms<durSeconds()*1000 ? "Resume" : "Start");
+  $("startPause").classList.toggle("primary", !running());
+}
+
+function setStatus(kind, html){ var el=$("status"); el.className="status "+kind; el.innerHTML='<span class="dot"></span>'+html; }
+function apiBase(){ return ($("api").value||"").trim().replace(/\/+$/,""); }
+
+// Write the current deadline to the DB (bulk upsert of the single "current" row).
+async function push(){
+  lastActionAt = Date.now();
+  var base=apiBase(), tok=($("tok").value||"").trim();
+  var payload = { id:"current", deadline:dl, amber:amberSeconds(), full:durSeconds(), label:($("label").value||"").trim()||"Talk" };
+  if(!base||!tok){ setStatus("err","Enter Worker URL + password to sync"); return; }
+  try{
+    var r = await fetch(base+"/api/"+COLLECTION+"/bulk", {
+      method:"POST", headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+tok },
+      body: JSON.stringify({ items:[payload] })
+    });
+    if(r.ok){ lastPushed=dl; setStatus("ok","Synced <b>"+fmt(msLeft())+"</b> · "+phaseLabel(msLeft())); }
+    else setStatus("err","Rejected ("+r.status+") — check the password");
+  }catch(e){ setStatus("off","Offline — showing locally, will retry"); }
+}
+
+// Poll the DB and adopt a deadline changed elsewhere (e.g. Pause/Reset pressed on the glasses) — the
+// sync that keeps phone and glasses agreeing. Skipped briefly after our own action to avoid a stale read.
+async function pull(){
+  var base=apiBase(), tok=($("tok").value||"").trim();
+  if(!base||!tok || Date.now()-lastActionAt < 2500) return;
+  try{
+    var r = await fetch(base+"/api/"+COLLECTION, { headers:{ "Authorization":"Bearer "+tok } });
+    if(!r.ok) return;
+    var d = await r.json(); var it=(d.items||[]).find(function(x){return x.id==="current";});
+    if(it && it.deadline!=null && +it.deadline!==dl){ dl=+it.deadline; render(); }
+  }catch(e){}
+}
+
+// ---- controls (each computes a new deadline and writes it) ----
+function start(){ if(running()) return; var ms=msLeft(); if(ms<=0 || ms>durSeconds()*1000+500) ms=durSeconds()*1000; dl=Date.now()+ms; render(); push(); }
+function pause(){ if(!running()) return; dl=-Math.round(Math.max(0,msLeft())); render(); push(); }
+function reset(){ dl=-(durSeconds()*1000); render(); push(); }
+function adjust(deltaSec){ if(running()){ dl += deltaSec*1000; } else { dl = -Math.round(Math.max(0, msLeft()+deltaSec*1000)); } render(); push(); }
+
+// ---- loops ----
+setInterval(render, 1000);       // smooth local tick from the shared deadline
+setInterval(pull, 3000);         // adopt Pause/Reset made on the glasses
+
+// ---- wiring + persistence ----
+["label","dur","amber","api","tok"].forEach(function(id){
+  $(id).value = ls.get(id, $(id).value);
+  $(id).addEventListener("input", function(){
+    ls.set(id, $(id).value);
+    if(id==="dur" && !running()){ dl=-(durSeconds()*1000); }
+    if(!running()) render();
+  });
+});
+if(!$("dur").value) $("dur").value="15:00";
+if(!$("amber").value) $("amber").value="2";
+
+$("startPause").addEventListener("click", function(){ running()? pause() : start(); });
+$("reset").addEventListener("click", reset);
+$("fullscreen").addEventListener("click", function(){
+  try{ document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }catch(e){}
+});
+Array.prototype.forEach.call(document.querySelectorAll("[data-adj]"), function(b){
+  b.addEventListener("click", function(){ adjust(parseInt(b.getAttribute("data-adj"),10)); });
+});
+
+dl = -(durSeconds()*1000); render(); pull();
+</script>
+</body>
+</html>

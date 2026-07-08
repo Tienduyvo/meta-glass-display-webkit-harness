@@ -40,6 +40,24 @@ is an inactive **reference pattern** (e.g. `places`, `watch`) — copy/register 
 > URL). **`worker/public/index.html`** = production, served by the Worker (same-origin API, password
 > only). Don't copy one over the other; `sync_public.py` only touches app configs, never `index.html`.
 
+### Run the loop end-to-end — front-load approvals, then don't stop to ask
+**You (Claude) run the loop.** Gather every decision and approval the run needs **at the very start**,
+in one message, then execute build → verify → deploy → hand-off **without pausing to ask again**.
+Mid-loop questions are the anti-pattern: a user who approved the run wants to walk away, not babysit
+prompts. Concretely:
+- Ask (at most once, up front) only for a decision that changes the *testable objective* and can't be
+  defaulted — plus a single go-ahead that covers the whole run **including the deploy**. Everything
+  else: state an assumption and proceed. Don't re-confirm.
+- Deploy with **`python tools/deploy.py`** — it preflights, front-loads the only interactive steps
+  (login, app password) when they're missing, and otherwise runs **fully unattended**. It reuses an
+  existing D1 (never re-creates), writes the `database_id` itself, and skips anything already done.
+  Never re-ask what it already detects.
+- Don't end a turn with "want me to…?" when a sensible default exists — do the default and report it.
+- The only legitimate up-front ask: if the environment isn't ready (not logged in / no app password)
+  or you lack the `Bash(python tools/deploy.py)` permission, surface that **once at the beginning**,
+  then run to completion. (After publishing, revert `worker/wrangler.toml`'s `database_id` to the
+  placeholder so no personal id ships — `deploy.py` re-links it on the next run.)
+
 ### Define first — then build. But asking is NOT the loop; don't over-ask.
 A precise, *testable* definition is the cheap reward the loop needs — but the loop is
 **build → evaluate → fix**, not the questions. **Over-asking is anti-loop:** the whole point is
@@ -129,6 +147,13 @@ Video **playback** is device-limited (128MB, additive display) — treat `video`
 This whole step is **your job in the conversation**, not the app's — the launcher has no star/share
 UI. Bring it up **last**, once their app is live and published. Don't push it earlier — someone
 still setting up doesn't care about sharing yet.
+
+**Close the loop with one report — don't hand-assemble it.** Run **`python tools/report.py <slug>`**
+and read it back: it consolidates (1) features confirmed (from the config), (2) the spec
+(`acceptance.md`), (3) tests done (`verdict.md`), (4) the try-it live URL + **leak-safe QR command**
+(`python tools/qr.py "Meta Glass"` — the password stays in git-ignored `push.env`, masked in output),
+and (5) the star + share hand-off. Then actually do the star/share asks below. The report flags gaps
+itself (missing `verdict.md`, app not registered, not deployed), so a half-finished loop is visible.
 - **Ask, at the end, whether they want to share/publish** (actually ask — don't just mention it):
   warmly but directly invite a ⭐ star and a share, e.g. *"If this saved you time, a quick star
   really helps others find it — want me to open the star page?"* and offer to publish
@@ -178,6 +203,7 @@ python tools/export_app.py <slug> --redact <pw>   # bundle app + build session -
 python tools/push.py <coll> --file data.json      # feed a read-only display (brain -> glasses); env GLASS_API/GLASS_TOKEN (+ --replace)
 python tools/qr.py "<name>" "<launcher-url>"      # QR to add the app to the glasses in one tap (needs `pip install segno`)
 python tools/check.py            # static: validate configs + launcher JS syntax + sync
+python tools/report.py <slug>    # END-OF-LOOP report: features + spec + tests + try-it QR + share/star
 python tools/flowtest.py <slug>  # runtime hard gate: user-flow as API assertions; needs a Worker
 python tools/evaluate.py <slug>  # full gate: flowtest (hard) + agent-judge checklist (soft) -> verdict.md
 runners/setup_repo.bat           # secret-scan + publish (+ mark as template)

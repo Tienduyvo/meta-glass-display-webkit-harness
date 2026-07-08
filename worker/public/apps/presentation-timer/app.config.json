@@ -1,0 +1,16 @@
+{
+  "title": "Presentation Timer",
+  "collection": "presentation_timer",
+  "readOnly": false,
+  "fields": [
+    { "key": "deadline", "label": "Time left", "type": "countdown" },
+    { "key": "amber",    "label": "Wrap-up (s)", "type": "number" },
+    { "key": "full",     "label": "Length (s)",  "type": "number" },
+    { "key": "label",    "label": "Talk",       "type": "text" }
+  ],
+  "row":    { "title": "label", "badge": "deadline", "amber": "amber", "full": "full" },
+  "detail": ["label", "deadline"],
+  "actions": { "add": false, "check": false, "fav": false, "delete": false },
+  "sort":   { "key": "created", "dir": "desc" },
+  "refresh": 3
+}

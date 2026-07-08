@@ -36,6 +36,7 @@
  html.web .row{display:flex;gap:10px;align-items:center;padding:12px;border:1px solid #1c232b;border-radius:12px;margin:8px 0;background:#11161c}
  html.web .row.done .t{text-decoration:line-through;color:#8b98a5}
  html.web .big{font-size:22px;font-weight:800;min-width:52px;text-align:right}html.web .t{font-size:16px;flex:1}
+ @keyframes gcblink{0%,100%{opacity:1}50%{opacity:0}} .row.over .big{color:#ff4d4f;animation:gcblink 1s steps(1,end) infinite}
  html.web .iconbtn{border:1px solid #30363d;background:#161b22;color:#e6edf3;border-radius:8px;padding:6px 10px;cursor:pointer}
  html.web .iconbtn.on{color:#d29922;border-color:#d29922}
  html.web input{background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:8px;padding:8px;width:100%;margin:6px 0}
@@ -53,7 +54,7 @@
 "use strict";
 var GLASS=document.documentElement.className==="glass";
 var API="",TOKEN="",REG={apps:[]},MODE="launcher",focus=0,view="list";
-var CFG=null,COLL="",QKEY="",CKEY="",items=[],DACTS=[],dfocus=0,refreshTimer=null;
+var CFG=null,COLL="",QKEY="",CKEY="",items=[],DACTS=[],dfocus=0,refreshTimer=null,tickTimer=null;
 
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
@@ -92,7 +93,7 @@ function screenSetup(){
 function stopRefresh(){ if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null;} }
 function startRefresh(){ stopRefresh(); var s=CFG&&+CFG.refresh; if(s>=3)refreshTimer=setInterval(function(){ if(MODE==="app")refresh(); }, s*1000); }
 async function openLauncher(){
-  stopRefresh();
+  stopRefresh(); stopTick();
   MODE="launcher"; view="list"; focus=0; CFG=null;
   document.getElementById("title").textContent="Apps";
   if(!API||!TOKEN){ return screenSetup(); }
@@ -115,7 +116,7 @@ async function openApp(idx){
   COLL=CFG.collection; QKEY="gc_queue_"+COLL; CKEY="gc_cache_"+COLL;
   document.getElementById("title").textContent=CFG.title||a.name;
   buildAddBar();
-  items=load(CKEY,[]); applySort(); render(); refresh(); startRefresh();
+  items=load(CKEY,[]); applySort(); render(); refresh(); startRefresh(); startTick();
   try{ history.pushState(null,""); }catch(e){}
 }
 function apiBase(){ return API||CFG.api||""; }
@@ -134,14 +135,35 @@ async function doPatch(id,p){mut(id,p);if(await api("PATCH","/"+COLL+"/"+id,p)==
 async function doDelete(id){items=items.filter(i=>i.id!==id);save(CKEY,items);if(await api("DELETE","/"+COLL+"/"+id)===null)queuePush({method:"DELETE",path:"/"+COLL+"/"+id});if(focus>=items.length)focus=Math.max(0,items.length-1);render();}
 async function doAdd(f){var tmp=Object.assign({id:"tmp_"+Date.now(),seen:false,fav:false,created:new Date().toISOString()},f);items.unshift(tmp);save(CKEY,items);applySort();render();var res=await api("POST","/"+COLL,f);if(res&&res.id)tmp.id=res.id,save(CKEY,items);else queuePush({method:"POST",path:"/"+COLL,body:f});}
 function rt(it){return it[CFG.row.title];}function rb(it){return CFG.row.badge?it[CFG.row.badge]:"";}
+/* Live countdown field. Value = absolute deadline (epoch ms) while running, or the NEGATIVE of
+   the frozen remaining ms while paused/ready. The glasses tick it locally every second and only
+   re-sync via `refresh` to pick up pause/reset/adjust — so a missed fetch never freezes the clock
+   (and there's no drift: the deadline is fixed). row.amber (field key, seconds) sets the wrap-up. */
+function cdMs(v){v=+v||0;return v>1e11?v-Date.now():-v;}
+function cdFmt(ms){var neg=ms<0,t=Math.round(Math.abs(ms)/1000),m=Math.floor(t/60),s=t%60;return (neg?"-":"")+m+":"+(s<10?"0":"")+s;}
+function cdTime(v){return cdFmt(cdMs(v));}
+function cdPhase(v,amber){var ms=cdMs(v);amber=(+amber||0)*1000;return ms<=0?"🔴 OVER":(amber&&ms<=amber?"🟡 Wrap up":"🟢 On pace");}
+function isCd(){return !!(CFG&&CFG.row&&fieldType(CFG.row.badge)==="countdown");}
+/* Glasses-side control of a countdown: write a new deadline to the DB (the single source of truth,
+   shared with the phone control page). pause -> freeze remaining; resume -> run again; reset -> full. */
+function cdAction(id,kind){var it=items.find(function(i){return i.id===id;});if(!it)return;
+  var k=CFG.row.badge,v=+it[k]||0,run=v>1e11,ms=run?v-Date.now():-v,full=(+it[CFG.row.full]||0)*1000,nv;
+  if(kind==="pause")nv=-Math.round(Math.max(0,ms));
+  else if(kind==="resume")nv=Date.now()+Math.max(0,ms);
+  else nv=full?-full:-Math.round(Math.max(0,ms));
+  var p={};p[k]=nv;doPatch(id,p);}
+function stopTick(){if(tickTimer){clearInterval(tickTimer);tickTimer=null;}}
+function startTick(){stopTick();if(isCd())tickTimer=setInterval(tickCd,1000);}
+function tickCd(){if(MODE!=="app"||view!=="list"||!isCd())return;var b=CFG.row.badge,amb=CFG.row.amber,rows=document.querySelectorAll("#screen .row");for(var i=0;i<rows.length;i++){var it=items[+rows[i].getAttribute("data-i")];if(!it)continue;var big=rows[i].querySelector(".big");if(big)big.textContent=cdTime(it[b]);var t=rows[i].querySelector(".t");if(t)t.textContent=cdPhase(it[b],it[amb]);rows[i].classList.toggle("over",cdMs(it[b])<=0);}}
 function render(){ if(MODE!=="app")return; updateBack(); view==="detail"?renderDetail():renderList(); setFoot((CFG.title||"")+" · "+items.length+" · [←] apps"); }
 function renderList(){var A=CFG.actions||{},s=document.getElementById("screen");
   var start=GLASS?Math.floor(focus/5)*5:0,slice=GLASS?items.slice(start,start+5):items,html="";
   if(!GLASS&&A.add)html+=addBarHTML();
   for(var i=0;i<slice.length;i++){var g=start+i,it=slice[i];
-    html+='<div class="row'+(g===focus?" focus":"")+(it.seen?" done":"")+'" data-i="'+g+'">'
-      +((rb(it)!==""&&rb(it)!=null)?'<div class="big">'+esc(rb(it))+'</div>':'')
-      +(fieldType(CFG.row.title)==="image"?'<img src="'+esc(rt(it))+'" alt="" style="height:'+(GLASS?64:44)+'px;max-width:'+(GLASS?128:96)+'px;object-fit:cover;border-radius:6px">':'<div class="t">'+esc(rt(it))+'</div>');
+    var cd=isCd(),bigv=cd?cdTime(it[CFG.row.badge]):rb(it),titv=cd?cdPhase(it[CFG.row.badge],it[CFG.row.amber]):rt(it),over=cd&&cdMs(it[CFG.row.badge])<=0;
+    html+='<div class="row'+(g===focus?" focus":"")+(it.seen?" done":"")+(over?" over":"")+'" data-i="'+g+'">'
+      +((bigv!==""&&bigv!=null)?'<div class="big">'+esc(bigv)+'</div>':'')
+      +((!cd&&fieldType(CFG.row.title)==="image")?'<img src="'+esc(rt(it))+'" alt="" style="height:'+(GLASS?64:44)+'px;max-width:'+(GLASS?128:96)+'px;object-fit:cover;border-radius:6px">':'<div class="t">'+esc(titv)+'</div>');
     if(!GLASS){if(A.check)html+='<button class="iconbtn'+(it.seen?" on":"")+'" data-act="check" data-id="'+esc(it.id)+'">✓</button>';
       if(A.fav)html+='<button class="iconbtn'+(it.fav?" on":"")+'" data-act="fav" data-id="'+esc(it.id)+'">★</button>';
       if(A.delete)html+='<button class="iconbtn" data-act="del" data-id="'+esc(it.id)+'">🗑</button>';}
@@ -151,6 +173,10 @@ function renderList(){var A=CFG.actions||{},s=document.getElementById("screen");
 function openURL(u){try{window.open(u,"_blank","noopener");}catch(e){location.href=u;}}
 function detailActions(it){var A=CFG.actions||{},acts=[];
   (CFG.fields||[]).forEach(function(f){if((f.type==="link"||f.type==="video")&&it[f.key])acts.push({label:"▶ Open "+(f.label||f.key),run:function(){openURL(it[f.key]);}});});
+  if(CFG.row&&fieldType(CFG.row.badge)==="countdown"){var v=+it[CFG.row.badge]||0,run=v>1e11,ms=run?v-Date.now():-v;
+    if(run)acts.push({label:"⏸ Pause",run:function(){cdAction(it.id,"pause");}});
+    else if(ms>0)acts.push({label:"▶ Resume",run:function(){cdAction(it.id,"resume");}});
+    acts.push({label:"↺ Reset",run:function(){cdAction(it.id,"reset");}});}
   if(A.check)acts.push({label:it.seen?"✓ Uncheck":"✓ Check off",run:function(){act(it.id,"check");}});
   if(A.fav)acts.push({label:it.fav?"★ Unfavorite":"★ Favorite",run:function(){act(it.id,"fav");}});
   return acts;}
@@ -167,7 +193,8 @@ function renderDetail(){var it=items[focus]||{},A=CFG.actions||{};
   if(CFG.fullscreen)return renderFullscreen(it,A);
   var html='<button class="iconbtn" data-nav="applist">‹ back</button><div style="margin-top:10px">';
   (CFG.detail||[]).forEach(function(k){var v=it[k],ty=fieldType(k),disp=esc(v);
-    if(ty==="geo"&&v)disp='<a href="https://maps.google.com/?q='+encodeURIComponent(v)+'" target="_blank" style="color:#8ab4f8">'+esc(v)+'</a>';
+    if(ty==="countdown")disp=esc(cdTime(v));
+    else if(ty==="geo"&&v)disp='<a href="https://maps.google.com/?q='+encodeURIComponent(v)+'" target="_blank" style="color:#8ab4f8">'+esc(v)+'</a>';
     else if((ty==="link"||ty==="video")&&v)disp='<a href="'+esc(v)+'" target="_blank" style="color:#8ab4f8">▶ Open</a>';
     else if(ty==="image"&&v)disp='<img src="'+esc(v)+'" alt="" style="width:100%;border-radius:10px;display:block" loading="lazy">';
     html+='<div class="muted">'+esc(k)+'</div><div style="font-size:20px;margin-bottom:8px">'+disp+'</div>';});

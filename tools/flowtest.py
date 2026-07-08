@@ -53,6 +53,8 @@ def synth(f):
     if t == "number":
         d = f.get("default")
         return d if isinstance(d, (int, float)) else 1
+    if t == "countdown":
+        return 1893456000000
     if t == "geo":
         return "1.00000,2.00000"
     if t in ("link", "video", "image"):

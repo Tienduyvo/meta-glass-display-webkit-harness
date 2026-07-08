@@ -3,6 +3,7 @@
   "apps": [
     { "name": "Buy List", "icon": "🛒", "config": "../apps/buy-list/app.config.json" },
     { "name": "To-Do",    "icon": "✅", "config": "../apps/todo/app.config.json" },
-    { "name": "Wallpaper","icon": "🖼️", "config": "../apps/wallpaper/app.config.json" }
+    { "name": "Wallpaper","icon": "🖼️", "config": "../apps/wallpaper/app.config.json" },
+    { "name": "Presentation Timer","icon": "⏱️", "config": "../apps/presentation-timer/app.config.json" }
   ]
 }

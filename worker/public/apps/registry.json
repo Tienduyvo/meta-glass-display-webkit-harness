@@ -15,6 +15,11 @@
       "name": "Wallpaper",
       "icon": "🖼️",
       "config": "/apps/wallpaper/app.config.json"
+    },
+    {
+      "name": "Presentation Timer",
+      "icon": "⏱️",
+      "config": "/apps/presentation-timer/app.config.json"
     }
   ]
 }

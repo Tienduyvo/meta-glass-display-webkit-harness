@@ -16,11 +16,9 @@ worker/.dev.vars
 *.db-*
 *.bak
 *.log
-
 # --- Generated (may contain the password) ---
 qr.png
 qr.svg
-
 # --- Scratch / caches ---
 exports/
 __pycache__/
