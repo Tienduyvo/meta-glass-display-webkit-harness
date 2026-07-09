@@ -63,7 +63,7 @@
 "use strict";
 var GLASS=document.documentElement.className==="glass";
 var API="",TOKEN="",REG={apps:[]},MODE="launcher",focus=0,view="list";
-var CFG=null,CFGPATH="",COLL="",QKEY="",CKEY="",items=[],DACTS=[],dfocus=0,refreshTimer=null,tickTimer=null;
+var CFG=null,CFGPATH="",COLL="",QKEY="",CKEY="",items=[],DACTS=[],dfocus=0,refreshTimer=null,tickTimer=null,rotTimer=null;
 
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
@@ -102,7 +102,7 @@ function screenSetup(){
 function stopRefresh(){ if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null;} }
 function startRefresh(){ stopRefresh(); var s=CFG&&+CFG.refresh; if(s>=3)refreshTimer=setInterval(function(){ if(MODE==="app")refresh(); }, s*1000); }
 async function openLauncher(){
-  stopRefresh(); stopTick();
+  stopRefresh(); stopTick(); stopRotate(); stopInspire();
   MODE="launcher"; view="list"; focus=0; CFG=null;
   document.getElementById("title").textContent="Apps";
   if(!API||!TOKEN){ return screenSetup(); }
@@ -132,7 +132,7 @@ async function openApp(idx){
   COLL=CFG.collection; QKEY="gc_queue_"+COLL; CKEY="gc_cache_"+COLL;
   document.getElementById("title").textContent=CFG.title||a.name;
   buildAddBar();
-  items=load(CKEY,[]); applySort(); render(); refresh(); startRefresh(); startTick();
+  items=load(CKEY,[]); applySort(); render(); refresh(); startRefresh(); startTick(); startRotate();
   try{ history.pushState(null,""); }catch(e){}
 }
 function apiBase(){ return API||CFG.api||""; }
@@ -142,9 +142,12 @@ async function api(method,path,body){
 }
 function queuePush(m){var q=load(QKEY,[]);q.push(m);save(QKEY,q);}
 async function flushQueue(){var q=load(QKEY,[]);if(!q.length)return;var left=[];for(const m of q){if(await api(m.method,m.path,m.body)===null)left.push(m);}save(QKEY,left);}
+function audioPlaying(){var a=document.querySelector("#screen audio");return !!(a&&!a.paused&&!a.ended);}
 async function refresh(){await flushQueue();var res=await api("GET","/"+COLL);
   if(res&&res.items){items=res.items;save(CKEY,items);setStatus("online");}else{items=load(CKEY,[]);setStatus("offline");}
-  if(focus>=items.length)focus=0;applySort();render();}
+  if(focus>=items.length)focus=0;applySort();
+  /* Don't rebuild the DOM (which destroys a playing <audio>) while the user is listening. */
+  if(!audioPlaying())render();}
 function applySort(){var s=(CFG&&CFG.sort)||{key:"created",dir:"desc"};items.sort(function(a,b){var x=a[s.key],y=b[s.key];if(x==null)return 1;if(y==null)return -1;var c=typeof x==="number"?x-y:String(x).localeCompare(String(y));return s.dir==="desc"?-c:c;});}
 function mut(id,p){var it=items.find(i=>i.id===id);if(it)Object.assign(it,p);save(CKEY,items);}
 async function doPatch(id,p){mut(id,p);if(await api("PATCH","/"+COLL+"/"+id,p)===null)queuePush({method:"PATCH",path:"/"+COLL+"/"+id,body:p});render();}
@@ -169,6 +172,12 @@ function cdAction(id,kind){var it=items.find(function(i){return i.id===id;});if(
   else nv=full?-full:-Math.round(Math.max(0,ms));
   var p={};p[k]=nv;doPatch(id,p);}
 function stopTick(){if(tickTimer){clearInterval(tickTimer);tickTimer=null;}}
+/* `rotate`: seconds (config, fullscreen apps) — auto-advance to the next item while the
+   fullscreen view is open (a rotating wallpaper/slideshow). Manual ↑/↓ browsing still works. */
+function stopRotate(){if(rotTimer){clearInterval(rotTimer);rotTimer=null;}}
+function startRotate(){stopRotate();var s=+((CFG||{}).rotate)||0;
+  if(CFG&&CFG.fullscreen&&s>=3)rotTimer=setInterval(function(){
+    if(MODE==="app"&&view==="detail"&&items.length>1){focus=(focus+1)%items.length;render();}},s*1000);}
 function startTick(){stopTick();if(isCd())tickTimer=setInterval(tickCd,1000);}
 function tickCd(){if(MODE!=="app"||view!=="list"||!isCd())return;var b=CFG.row.badge,amb=CFG.row.amber,rows=document.querySelectorAll("#screen .row");for(var i=0;i<rows.length;i++){var it=items[+rows[i].getAttribute("data-i")];if(!it)continue;var big=rows[i].querySelector(".big");if(big)big.textContent=cdTime(it[b]);var t=rows[i].querySelector(".t");if(t)t.textContent=cdPhase(it[b],it[amb]);rows[i].classList.toggle("over",cdMs(it[b])<=0);}}
 function render(){ if(MODE!=="app")return; updateBack(); view==="detail"?renderDetail():renderList();
@@ -177,6 +186,10 @@ function controlURL(){return CFG.control?CFGPATH.replace(/[^/]+$/,"")+CFG.contro
 function renderList(){var A=CFG.actions||{},s=document.getElementById("screen");
   var start=GLASS?Math.floor(focus/5)*5:0,slice=GLASS?items.slice(start,start+5):items,html="";
   if(!GLASS&&A.add)html+=addBarHTML();
+  if(!items.length){
+    var how=CFG.control?("Set it up on your phone —<br>open "+esc(CFG.title||"this app")+" from the launcher there."):(A.add?(GLASS?"Add items on your phone or desktop —<br>they appear here to use hands-free.":"Add your first item above ⬆"):"This display is fed from your PC —<br>tools/push.py fills it.");
+    html+='<div style="text-align:center;margin-top:'+(GLASS?"110px":"40px")+';font-size:'+(GLASS?"26px":"16px")+';line-height:1.55"><div style="font-size:'+(GLASS?"54px":"40px")+'">✨</div><b>Nothing here yet.</b><br><span style="color:'+(GLASS?"#9ecbff":"#8aa0b8")+'">'+how+"</span></div>";
+    s.innerHTML=html; if(!GLASS&&A.add)wireAddBar(); return;}
   for(var i=0;i<slice.length;i++){var g=start+i,it=slice[i];
     var cd=isCd(),bigv=cd?cdTime(it[CFG.row.badge]):rb(it),titv=cd?cdPhase(it[CFG.row.badge],it[CFG.row.amber]):rt(it),over=cd&&cdMs(it[CFG.row.badge])<=0;
     html+='<div class="row'+(g===focus?" focus":"")+(it.seen?" done":"")+(over?" over":"")+'" data-i="'+g+'">'
@@ -186,11 +199,42 @@ function renderList(){var A=CFG.actions||{},s=document.getElementById("screen");
       if(A.fav)html+='<button class="iconbtn'+(it.fav?" on":"")+'" data-act="fav" data-id="'+esc(it.id)+'">★</button>';
       if(A.delete)html+='<button class="iconbtn" data-act="del" data-id="'+esc(it.id)+'">🗑</button>';}
     html+='</div>';}
-  s.innerHTML=html; if(!GLASS&&A.add)wireAddBar();
+  s.innerHTML=html; if(!GLASS&&A.add)wireAddBar(); stopInspire();
 }
-function openURL(u){try{window.open(u,"_blank","noopener");}catch(e){location.href=u;}}
+function openURL(u){try{var w=window.open(u,"_blank","noopener");if(!w)location.href=u;}catch(e){location.href=u;}}
+function toggleAudio(id){var a=document.getElementById(id);if(!a)return;if(a.paused){a.play();}else{a.pause();}}
+/* Inspire overlay: while an audio program plays, show the app's OWN bundled `audioImages`
+   full-bleed in the FOREGROUND, rotating — an immersive inspiring moment. Tap to pause, ← exits. */
+var inspTimer=null,inspImgs=null,inspIdx=0;
+function stopInspire(){if(inspTimer){clearInterval(inspTimer);inspTimer=null;}
+  var o=document.getElementById("gcinspire");if(o)o.remove();}
+function startInspire(){var imgs=CFG&&CFG.audioImages;if(!imgs||!imgs.length)return;stopInspire();
+  var o=document.createElement("div");o.id="gcinspire";
+  o.style.cssText="position:fixed;inset:0;z-index:40;background:#000;cursor:pointer;overflow:hidden";
+  var img=document.createElement("img");
+  img.style.cssText="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.4s ease";
+  o.appendChild(img);
+  var bar=document.createElement("div");
+  bar.style.cssText="position:absolute;top:0;left:0;right:0;padding:12px 16px;font-size:15px;color:#fff;text-shadow:0 1px 4px #000;background:linear-gradient(#0009,transparent)";
+  bar.textContent="‹ Back  ·  tap image = play/pause";
+  bar.style.cursor="pointer";
+  bar.onclick=function(e){e.stopPropagation();stopInspire();view="list";render();};
+  o.appendChild(bar);
+  o.onclick=function(){var a=document.querySelector("#screen audio");if(a){a.paused?a.play():a.pause();}};
+  document.body.appendChild(o);
+  inspImgs=imgs.slice();inspIdx=0;
+  function show(){img.style.opacity="0";setTimeout(function(){
+    img.src=inspImgs[inspIdx%inspImgs.length];img.style.opacity="1";},300);inspIdx++;}
+  show();inspTimer=setInterval(show,12000);}
+/* Show inspiring images as soon as an audio item's detail opens — NOT gated on the audio
+   'play' event (playback is device-limited on the glasses). Audio is best-effort. */
+function wireInspire(){var au=document.querySelector("#screen audio");
+  if(au&&CFG&&CFG.audioImages&&CFG.audioImages.length){
+    startInspire();
+    try{var pr=au.play();if(pr&&pr.catch)pr.catch(function(){});}catch(e){}}}
 function detailActions(it){var A=CFG.actions||{},acts=[];
   (CFG.fields||[]).forEach(function(f){if((f.type==="link"||f.type==="video")&&it[f.key])acts.push({label:"▶ Open "+(f.label||f.key),run:function(){openURL(it[f.key]);}});});
+  (CFG.fields||[]).forEach(function(f){if(f.type==="audio"&&it[f.key])acts.push({label:"🔊 Play / pause "+(f.label||f.key),run:function(){toggleAudio("au_"+f.key);}});});
   if(CFG.row&&fieldType(CFG.row.badge)==="countdown"){var v=+it[CFG.row.badge]||0,run=v>1e11,ms=run?v-Date.now():-v;
     if(run)acts.push({label:"⏸ Pause",run:function(){cdAction(it.id,"pause");}});
     else if(ms>0)acts.push({label:"▶ Resume",run:function(){cdAction(it.id,"resume");}});
@@ -204,7 +248,7 @@ function renderFullscreen(it,A){var f=(CFG.fields||[]).find(function(x){return x
   else{if(A.fav)ov+='<button class="iconbtn" data-act="fav" data-id="'+esc(it.id)+'">★</button> ';if(A.delete)ov+='<button class="iconbtn" data-act="del" data-id="'+esc(it.id)+'">🗑</button>';}
   document.getElementById("screen").innerHTML=
     '<div style="position:absolute;inset:0;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden">'
-    +(url?'<img src="'+esc(url)+'" alt="" style="width:100%;height:100%;object-fit:contain">':'<span class="muted">no image</span>')
+    +(url?'<img src="'+esc(url)+'" alt="" style="width:100%;height:100%;object-fit:contain">':'<div style="text-align:center;font-size:26px;line-height:1.55"><div style="font-size:54px">✨</div><b>Nothing here yet.</b><br><span style="color:#9ecbff">Send one from your phone —<br>open '+esc(CFG.title||"this app")+' from the launcher there.</span></div>')
     +'</div>'
     +(GLASS?'':'<div style="position:absolute;left:12px;top:12px;z-index:2"><button class="iconbtn" data-nav="applist">‹ back</button></div>')
     +(ov?'<div style="position:absolute;left:0;right:0;bottom:12px;z-index:2;text-align:center">'+ov+'</div>':'');}
@@ -215,6 +259,7 @@ function renderDetail(){var it=items[focus]||{},A=CFG.actions||{};
     if(ty==="countdown")disp=esc(cdTime(v));
     else if(ty==="geo"&&v)disp='<a href="https://maps.google.com/?q='+encodeURIComponent(v)+'" target="_blank" style="color:#8ab4f8">'+esc(v)+'</a>';
     else if((ty==="link"||ty==="video")&&v)disp='<a href="'+esc(v)+'" target="_blank" style="color:#8ab4f8">▶ Open</a>';
+    else if(ty==="audio"&&v)disp='<audio id="au_'+esc(k)+'" controls preload="none" src="'+esc(v)+'" style="width:100%;display:block"></audio>';
     else if(ty==="image"&&v)disp='<img src="'+esc(v)+'" alt="" style="width:100%;border-radius:10px;display:block" loading="lazy">';
     html+='<div class="muted">'+esc(k)+'</div><div style="font-size:20px;margin-bottom:8px">'+disp+'</div>';});
   DACTS=detailActions(it);
@@ -224,6 +269,7 @@ function renderDetail(){var it=items[focus]||{},A=CFG.actions||{};
     if(A.fav)html+='<button class="iconbtn" data-act="fav" data-id="'+esc(it.id)+'">★ fav</button> ';
     if(A.delete)html+='<button class="iconbtn" data-act="del" data-id="'+esc(it.id)+'">🗑 delete</button>';}
   document.getElementById("screen").innerHTML=html+'</div>';
+  wireInspire();
 }
 var ADD_FIELDS=[];
 function buildAddBar(){ADD_FIELDS=(CFG.actions&&CFG.actions.add)?(CFG.fields||[]):[];}
