@@ -15,6 +15,14 @@
           { "type": "command", "command": "python tools/loop_state.py --stop-hook", "timeout": 30 }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|compact",
+        "hooks": [
+          { "type": "command", "command": "python tools/loop_state.py --session-start", "timeout": 30 }
+        ]
+      }
     ]
   }
 }

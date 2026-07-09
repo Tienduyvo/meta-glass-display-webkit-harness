@@ -50,6 +50,16 @@ def app_state(slug):
     txt = open(acc, encoding="utf-8", errors="replace").read().lower()
     if "surface plan" not in txt and "## definition" not in txt:
         return ("DEFINE", "apps/%s/acceptance.md lacks the surface plan — add Definition + Surface plan sections" % slug)
+    # User findings REOPEN the loop: a PASS verdict is not terminal — real-device testing that
+    # surfaces an issue must flip the app back into a fix -> re-evaluate cycle, as an artifact
+    # (not just conversation). Open `- [ ]` lines in findings.md dominate everything below.
+    fnd = os.path.join(APPS, slug, "findings.md")
+    if os.path.exists(fnd):
+        open_items = [l.strip() for l in open(fnd, encoding="utf-8", errors="replace")
+                      if l.strip().startswith("- [ ]")]
+        if open_items:
+            return ("FIX", "apps/%s/findings.md has %d open user finding(s) (%s…) — fix, re-run "
+                    "evaluate, then check the line off" % (slug, len(open_items), open_items[0][:60]))
     ver = os.path.join(APPS, slug, "verdict.md")
     if not os.path.exists(ver):
         return ("VERIFY", "run `python tools/evaluate.py %s` (wrangler dev up), judge the soft gate, write verdict.md" % slug)
@@ -215,9 +225,21 @@ def stop_hook():
     }))
 
 
+def session_start():
+    """SessionStart hook: print the loop state INTO the agent's context at session
+    start/resume/compaction. A crashed or compacted session bypasses the Stop hook, so
+    re-orientation must be deterministic (code), not hoped-for (a CLAUDE.md sentence)."""
+    print("[loop_state] Session (re)start — build-loop state recomputed from disk:")
+    print_table()
+    print("Rule: if the next action needs no user input, do it now; stop only at DONE or a "
+          "genuine user gate (Define answers, commit approval, on-device testing).")
+
+
 if __name__ == "__main__":
     if "--stop-hook" in sys.argv:
         stop_hook()
+    elif "--session-start" in sys.argv:
+        session_start()
     else:
         print_table()
     sys.exit(0)
