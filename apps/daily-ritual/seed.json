@@ -1,0 +1,15 @@
+[
+  { "text": "I am grateful to be awake and alive today.", "media": "", "slot": "🌅 Morning" },
+  { "text": "I choose calm, focus, and energy this morning.", "media": "", "slot": "🌅 Morning" },
+  { "text": "I am capable of handling whatever today brings.", "media": "", "slot": "🌅 Morning" },
+  { "text": "Today I move toward my goals, one small step at a time.", "media": "", "slot": "🌅 Morning" },
+  { "text": "I am confident, clear, and ready to build.", "media": "", "slot": "🌅 Morning" },
+  { "text": "My mind is sharp, my body is awake, my heart is open.", "media": "", "slot": "🌅 Morning" },
+  { "text": "I attract good ideas and good people today.", "media": "", "slot": "🌅 Morning" },
+  { "text": "I let go of yesterday — today is a fresh page.", "media": "", "slot": "🌅 Morning" },
+  { "text": "🎙 If— by Rudyard Kipling (human voice, 1:43)", "audio": "/media/if-kipling-human.mp3", "media": "", "slot": "🌅 Morning" },
+  { "text": "🎙 Invictus by W.E. Henley (human voice, 1:07)", "audio": "/media/invictus-human.mp3", "media": "", "slot": "🌅 Morning" },
+  { "text": "Tonight, name 3 things that went well today.", "media": "", "slot": "🌙 Night" },
+  { "text": "Who made your day better today? Thank them tomorrow.", "media": "", "slot": "🌙 Night" },
+  { "text": "What is one small thing you're grateful for right now?", "media": "", "slot": "🌙 Night" }
+]

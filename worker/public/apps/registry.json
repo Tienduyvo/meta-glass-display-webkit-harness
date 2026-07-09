@@ -30,6 +30,11 @@
       "name": "Stencil",
       "icon": "✏️",
       "config": "/apps/stencil/app.config.json"
+    },
+    {
+      "name": "Daily Ritual",
+      "icon": "🌗",
+      "config": "/apps/daily-ritual/app.config.json"
     }
   ]
 }

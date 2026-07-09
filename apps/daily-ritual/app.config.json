@@ -1,0 +1,24 @@
+{
+  "title": "Daily Ritual",
+  "collection": "daily_ritual",
+  "readOnly": false,
+  "fields": [
+    { "key": "text",  "label": "Affirmation / Gratitude", "type": "text" },
+    { "key": "audio", "label": "Audio", "type": "audio" },
+    { "key": "media", "label": "Play", "type": "video" },
+    { "key": "slot",  "label": "When (🌅 Morning / 🌙 Night)", "type": "text", "default": "🌅 Morning" }
+  ],
+  "row":    { "title": "slot", "badge": "text" },
+  "detail": ["text", "audio", "media", "slot"],
+  "actions": { "add": true, "check": true, "fav": true, "delete": true },
+  "sort":    { "key": "slot", "dir": "asc" },
+  "refresh": 120,
+  "audioImages": [
+    "/media/inspire/nature1.jpg",
+    "/media/inspire/nature2.jpg",
+    "/media/inspire/nature3.jpg",
+    "/media/inspire/nature4.jpg",
+    "/media/inspire/nature5.jpg",
+    "/media/inspire/nature6.jpg"
+  ]
+}
