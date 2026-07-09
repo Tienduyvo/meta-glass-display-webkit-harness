@@ -9,5 +9,7 @@
   "detail": ["image"],
   "actions": { "add": true, "check": false, "fav": false, "delete": true },
   "sort": { "key": "created", "dir": "desc" },
-  "fullscreen": true
+  "fullscreen": true,
+  "rotate": 20,
+  "refresh": 60
 }
