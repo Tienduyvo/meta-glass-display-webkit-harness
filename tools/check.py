@@ -58,6 +58,40 @@ def check_launchers():
             fails.append(rel + " JS: " + (r.stderr.strip().splitlines()[-1] if r.stderr else "error"))
 
 
+KNOWN_TYPES = {"text", "number", "geo", "link", "video", "image", "audio", "countdown"}
+# Types with a dedicated render/action path — each launcher must contain its type-marker
+# string, so a type added to one launcher but forgotten in the other fails fast.
+RENDERED_TYPES = {"geo", "link", "video", "image", "audio", "countdown"}
+
+
+def check_field_types():
+    """Gate (2026-07-09, audio-type change): configs use only KNOWN_TYPES, and every
+    RENDERED_TYPE any app uses is handled by BOTH launchers (string marker parity)."""
+    used = set()
+    for f in glob.glob(os.path.join(ROOT, "apps", "*", "app.config.json")):
+        try:
+            cfg = json.load(open(f, encoding="utf-8"))
+        except Exception:
+            continue
+        for fld in cfg.get("fields", []):
+            t = fld.get("type", "text")
+            used.add(t)
+            if t not in KNOWN_TYPES:
+                fails.append("field type: %s uses unknown type '%s'" % (os.path.relpath(f, ROOT), t))
+    launchers = [os.path.join(ROOT, "app", "index.html"),
+                 os.path.join(ROOT, "worker", "public", "index.html")]
+    srcs = {p: open(p, encoding="utf-8").read() for p in launchers if os.path.exists(p)}
+    for t in sorted(used & RENDERED_TYPES):
+        marker = '"%s"' % t
+        for p, src in srcs.items():
+            if marker not in src:
+                fails.append("launcher parity: %s has no handling for field type '%s'"
+                             % (os.path.relpath(p, ROOT), t))
+    print("[%s] field types known + handled by both launchers (%s)"
+          % ("x" if not any(s.startswith(("field type", "launcher parity")) for s in fails) else "!",
+             ", ".join(sorted(used)) or "none"))
+
+
 def check_drift():
     try:
         sys.path.insert(0, os.path.join(ROOT, "tools"))
@@ -75,7 +109,7 @@ def check_drift():
 def main():
     print("\nmeta-glass-display-webkit-harness — check")
     print("-----------------------------------------")
-    check_json(); check_launchers(); check_drift()
+    check_json(); check_launchers(); check_field_types(); check_drift()
     print()
     if fails:
         print("FAIL (%d):" % len(fails))

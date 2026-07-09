@@ -56,6 +56,12 @@ def main(argv):
     else:
         for b in bullets:
             print("  [ ] " + b)
+    # Standing lines judged on EVERY app, whether or not acceptance.md mentions them.
+    # Users reach these states in real use (fresh install, everything deleted, feed not
+    # pushed yet) — a surface that renders a dead end there is a UX failure.
+    print("  [ ] STANDING — EMPTY STATE: simulate an empty collection (e.g. bulk --replace")
+    print("      with []) and screenshot glasses + phone: each surface must say what to do")
+    print("      next (add on phone / open the control page / fed from PC), never a blank view.")
     print("\n-> Agent: open the app on a local `wrangler dev`, screenshot the key state,")
     print("   rule each [ ] line PASS/FAIL from the screenshot, then write the verdict.")
 
