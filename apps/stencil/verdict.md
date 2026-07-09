@@ -37,6 +37,20 @@ bulk-upsert-undelete regressions).
 - [x] Saved list loads from the collection (thumbnails + names, ✕ delete wired to DELETE).
 - [~] Delete button exercised via flowtest's DELETE assertion, not clicked in the UI (low risk).
 
+## Update (v2): redefined after the user's Define answers (photos first · glasses-driven · D-pad)
+The launcher gained a fullscreen-app capability (both launchers, kit-level, see CHANGELOG
+2026-07-09) and the control page now defaults to Photo. Verified in headless Edge against the
+local worker (5 stencils in the collection):
+- [x] Opening Stencil on the glasses lands **directly in the fullscreen stencil view** — no list
+  step; footer reads `1/5 · Stencil · [↑↓] switch`.
+- [x] **D-pad ↓** switches to the next stencil (X → cross, footer `2/5`), **↑** wraps back to
+  `1/5` — one stencil at a time, never leaving the AR view.
+- [x] **←** still backs out to the list (footer flips to `Stencil · 5 · [←] apps`), then launcher.
+- [x] Control page opens with the **Photo tab first and active** (drop zone + edge-detail slider
+  visible before any interaction); Shapes/Text demoted to secondary tabs.
+- [x] Full flowtest re-run across all six registered apps after the launcher edit — all PASS
+  (Wallpaper shares the fullscreen code path).
+
 ## Known constraints (by design — see acceptance.md)
 - The overlay is head-locked (hardware): the user keeps their head still while tracing and
   re-aligns by eye. No anchoring.

@@ -69,26 +69,26 @@
   </div>
 
   <div class="tabs">
-    <button id="tab_shape" class="on">Shapes</button>
+    <button id="tab_photo" class="on">Photo</button>
+    <button id="tab_shape">Shapes</button>
     <button id="tab_text">Text</button>
-    <button id="tab_photo">Photo</button>
   </div>
 
-  <div id="pane_shape">
+  <div id="pane_photo">
+    <div class="drop" id="drop">Tap to choose a photo — or drag &amp; drop / paste one.<br>
+      It is converted to traceable line art (edges only).</div>
+    <input type="file" id="file" accept="image/*" hidden>
+    <label for="edge">Edge detail</label>
+    <input type="range" id="edge" min="20" max="140" value="70">
+  </div>
+
+  <div id="pane_shape" hidden>
     <div class="shapes" id="shapelib"></div>
   </div>
 
   <div id="pane_text" hidden>
     <label for="txt">Word / letters to trace</label>
     <input type="text" id="txt" placeholder="ABC" autocomplete="off" maxlength="24">
-  </div>
-
-  <div id="pane_photo" hidden>
-    <div class="drop" id="drop">Tap to choose a photo — or drag &amp; drop / paste one.<br>
-      It is converted to traceable line art (edges only).</div>
-    <input type="file" id="file" accept="image/*" hidden>
-    <label for="edge">Edge detail</label>
-    <input type="range" id="edge" min="20" max="140" value="70">
   </div>
 
   <fieldset>
@@ -148,7 +148,7 @@ var ls = {
 }catch(e){} })();
 
 var cv = $("cv"), ctx = cv.getContext("2d");
-var MODE = "shape", SHAPE = "circle", PHOTO = null; // PHOTO = downscaled ImageData of the source
+var MODE = "photo", SHAPE = "circle", PHOTO = null; // PHOTO = downscaled ImageData of the source
 var COLORS = ["#ffffff","#4dff7c","#41e0ff","#ffcf4d"];
 var color = COLORS[0];
 
@@ -211,7 +211,7 @@ function renderText(){ paintBase();
   while(size>20 && ctx.measureText(t).width>540){ size-=8; ctx.font="700 "+size+"px system-ui, Arial, sans-serif"; }
   ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.strokeText(t,300,310,560); }
 function renderPhoto(){ paintBase();
-  if(!PHOTO){ ctx.font="24px system-ui"; ctx.textAlign="center"; ctx.fillText("choose a photo below",300,300); return; }
+  if(!PHOTO){ ctx.font="24px system-ui"; ctx.textAlign="center"; ctx.fillText("choose or paste a photo below",300,300); return; }
   var w=PHOTO.width, h=PHOTO.height, thr=160-+$("edge").value; // slider up = more edges
   var src=PHOTO.data, out=ctx.createImageData(600,600), od=out.data;
   var sc=(+$("scale").value/100), dw=Math.round(w*sc), dh=Math.round(h*sc);
