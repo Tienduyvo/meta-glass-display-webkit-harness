@@ -9,6 +9,29 @@ state change (pause/reset) reaches the glasses within the 3s sync. A dropped fet
 clock (the tick reads the cached deadline). All settings + start/pause controls live in `control.html`.
 When over time, the glasses row **blinks red**.
 
+## Definition (consolidated 2026-07-09; presets from user feedback on live testing)
+
+1. *What's the data?* → **One absolute deadline** (epoch-ms running / negative-frozen paused)
+   plus label, length and wrap-up threshold — the DB row is the single source of truth both
+   surfaces read AND write; plus **preset rows** (1/5/10/15 min, paused at full) so the app is
+   usable before any setup.
+2. *What's the consuming moment?* → **Presenting: hands busy, eyes up** — glancing time-left
+   mid-talk is exactly when pulling out a phone is impossible. Glasses-worthy by definition.
+3. *Key action in the moment?* → **Glance the big time + pacing phase**; Enter → Pause /
+   Resume / Reset. Everything else (durations, labels, thresholds) is phone-side authoring.
+
+## Surface plan
+
+- **Glasses (consuming):** big ticking time as the row's bright element, pacing badge
+  (🟢/🟡/🔴, blinks red when over); detail = Pause/Resume/Reset via D-pad. **Never empty:**
+  seeded preset timers (1/5/10/15 min) sit in the list ready to Resume even before the control
+  page was ever opened; a truly empty collection shows the kit's "set it up on your phone" hint.
+- **Mobile (authoring/control):** the launcher opens `control.html` directly — big local clock,
+  Start/Pause/Reset, ±adjust, **one-tap preset chips (1/5/10/15/20 min)** that arm + sync the
+  timer immediately, length/label/amber inputs.
+- **Desktop:** same control page (presenter's laptop); no bulk/PC feed — skipped, nothing to
+  compute.
+
 ## Assumptions (stated, not asked)
 - The **consuming** moment (glancing at time left while presenting, hands busy, eyes up) belongs on
   the **glasses**; the **authoring/control** moment (set duration, start/pause) belongs on
@@ -58,6 +81,20 @@ When over time, the glasses row **blinks red**.
   arrow to **⏸ Pause** or **↺ Reset** and press Enter; **given** it's paused, I see **▶ Resume / Reset**.
 - **Given** I press a glasses control, **then** it writes the new deadline to the DB and the phone
   control page adopts it within ~3s (and vice-versa) — no two-clock conflict.
+
+## Presets & empty state (added 2026-07-09, user feedback; revised same day)
+- **One active timer, selected by preset** (user: "showing multiple timers… better to just
+  select and then 1 timer becomes active"): the collection holds a single `current` row —
+  the glasses always show exactly ONE timer. Selection happens on the control page: tapping
+  a preset chip (1/5/10/15/20 min) makes that duration THE active timer (armed paused-at-full,
+  synced). The earlier multi-preset-row seeding is retired.
+- **Given** a fresh backend, **when** I open the timer on the glasses, **then** I see the one
+  seeded ready timer (10:00 default) — Enter → **▶ Resume** starts it hands-free; never blank.
+- **Given** the control page, **when** I tap a preset chip, **then** the length is set and the
+  single active timer re-arms to it. (Verified: `exports/dr2_control_after_chip.png`,
+  10-min chip → `10:00`.)
+- **Given** an empty collection, **then** the glasses show the kit's "Nothing here yet — set it
+  up on your phone" hint instead of a blank list.
 
 ## Out of scope (kit constraints, by design)
 - No sound/vibration alarm on the glasses (it turns red and blinks when over).

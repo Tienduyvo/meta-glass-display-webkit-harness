@@ -68,6 +68,14 @@
     <button data-adj="60">+1:00</button>
   </div>
 
+  <div class="adjust" style="margin-top:8px;grid-template-columns:1fr 1fr 1fr 1fr 1fr">
+    <button data-preset="1">1 min</button>
+    <button data-preset="5">5 min</button>
+    <button data-preset="10">10 min</button>
+    <button data-preset="15">15 min</button>
+    <button data-preset="20">20 min</button>
+  </div>
+
   <fieldset>
     <legend>Talk</legend>
     <label for="label">Title (shown on the glasses)</label>
@@ -210,6 +218,15 @@ $("fullscreen").addEventListener("click", function(){
 });
 Array.prototype.forEach.call(document.querySelectorAll("[data-adj]"), function(b){
   b.addEventListener("click", function(){ adjust(parseInt(b.getAttribute("data-adj"),10)); });
+});
+// One-tap presets: set the length, arm the timer (ready, paused at full) and sync it, so the
+// glasses show a usable timer immediately — never an empty screen while you fiddle with inputs.
+Array.prototype.forEach.call(document.querySelectorAll("[data-preset]"), function(b){
+  b.addEventListener("click", function(){
+    var m=parseInt(b.getAttribute("data-preset"),10);
+    $("dur").value=m+":00"; ls.set("dur", $("dur").value);
+    dl=-(m*60*1000); render(); push();
+  });
 });
 
 // Creds arrive from the launcher (URL) or localStorage, so the control works directly — only
