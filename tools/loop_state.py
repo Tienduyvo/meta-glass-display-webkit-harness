@@ -154,6 +154,15 @@ def transitions(only_dirty=False):
         if m:
             out.append(("DEPLOY", "live worker differs from worker/public — run `python tools/deploy.py` "
                                   "(then revert wrangler.toml database_id to the placeholder)"))
+    if not out:
+        try:
+            import commit_prep
+            issues = commit_prep.hygiene_issues()
+            if issues:
+                out.append(("CLEAN", "commit hygiene failed (%d): %s — run `python tools/commit_prep.py`"
+                            % (len(issues), issues[0])))
+        except Exception:
+            pass
     return out
 
 
@@ -175,7 +184,8 @@ def print_table():
     if t:
         print("  [%s] %s" % t[0])
     elif d:
-        print("  [COMMIT] %d file(s) uncommitted — propose a commit to the user (user gate)" % len(d))
+        print("  [COMMIT] %d file(s) uncommitted — run `python tools/commit_prep.py`, present the plan,"
+              " commit + push on approval (user gate)" % len(d))
     else:
         print("  [DONE] nothing actionable — invite real-device testing / share")
     if backlog:

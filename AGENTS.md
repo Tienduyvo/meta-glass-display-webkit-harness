@@ -43,7 +43,7 @@ is an inactive **reference pattern** (e.g. `places`, `watch`) — copy/register 
 ### The loop is a STATE MACHINE — you own the transitions, the user never asks "what's next"
 Every app is always in exactly one state, computed from artifacts on disk (like `git status`):
 
-    DEFINE → BUILD → VERIFY → SYNC → DEPLOY → COMMIT (user gate) → DONE (test-invite / share)
+    DEFINE → BUILD → VERIFY → SYNC → DEPLOY → CLEAN → COMMIT (user gate) → DONE (test-invite / share)
 
 - **`python tools/loop_state.py`** prints each app's state and **THE next action**. Run it whenever
   you're unsure where you are — and mentally before ending any turn.
@@ -58,6 +58,15 @@ Every app is always in exactly one state, computed from artifacts on disk (like 
   times** before involving the user. If it's still red, stop with a short **blocker report**: what
   failed, what you tried, and the one question/permission that unblocks it. Never end a turn with a
   silent failure, and never ask before you've spent your own attempts.
+- **Clean & commit is part of the loop, not an afterthought.** Before proposing a commit, run
+  **`python tools/commit_prep.py`**: it hard-fails on hygiene (a real `database_id` in
+  wrangler.toml, tracked secret files, credential-looking strings or stray UUIDs in dirty files,
+  leftover `*.bak`/`*.tmp` junk) — **fix those yourself** (the CLEAN state is agent-actionable) —
+  and suggests how to group the dirty files into logical conventional commits. Then craft the
+  messages like a maintainer: one commit per concern (per app / kit / harness / docs), imperative
+  subject ≤ 72 chars in the repo's `type(scope):` style, a body that explains **why** (wrapped
+  ~72), no "wip"/"fixes"/file-list subjects. Present the plan as the single COMMIT ask; on
+  approval, stage each group, commit, push.
 - Committed apps that predate a gate show up as **backlog** — improve them when they're next
   touched; don't churn the whole repo to satisfy a new gate.
 

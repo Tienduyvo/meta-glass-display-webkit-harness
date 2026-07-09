@@ -36,6 +36,15 @@ cheaply (no-build rule) stay as human-eyeballed lines in an app's `acceptance.md
     the same turn; on red gates self-fix up to ~3 iterations before asking; end turns only at DONE
     or a user gate, handing over one crisp ask. **Gate:** the Stop hook itself.
 
+### Added (3)
+- **Clean & commit is a loop state.** `tools/commit_prep.py` prepares the hand-off: hygiene
+  hard-gate (placeholder `database_id`, no tracked secret files, credential/UUID scan of dirty
+  files, leftover junk) plus a suggested grouping of dirty files into logical conventional
+  commits (per app / kit / harness / docs). `loop_state.py` gained a **CLEAN** state (hygiene
+  failures are agent-actionable → Stop-hook enforced); COMMIT stays the user gate but arrives
+  pre-structured. Runbook: message rules (imperative ≤ 72-char `type(scope):` subject, body =
+  the why). **Gate:** `commit_prep.py` exits 1 on hygiene failure.
+
 ### Changed
 - **Runbook: define → plan surfaces → build (don't run with the idea).** AGENTS.md's Define phase
   previously discouraged clarifying questions ("at most 1–2 — often zero"); in practice agents
