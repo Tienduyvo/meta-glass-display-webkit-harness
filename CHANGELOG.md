@@ -11,6 +11,108 @@ changes should be human-reviewed before they ship.
 cheaply (no-build rule) stay as human-eyeballed lines in an app's `acceptance.md` / `verdict.md`
 (the soft gate), not brittle end-to-end automation.
 
+## 2026-07-09 — from user feedback on live testing (daily-ritual session)
+
+### Fixed
+- **Launcher: background `refresh` cut off playing audio mid-sentence.** A `refresh:<n>` app
+  re-fetches and calls `render()`, which rebuilt the detail DOM and destroyed a playing
+  `<audio>` element — so any program longer than the refresh interval was chopped (found on
+  device: "sounds are being cut off mid sentence"). Now `refresh()` skips the re-render while
+  audio is playing (`audioPlaying()` guard), so playback survives at ANY clip length
+  regardless of the interval. Both launchers. **Gate:** `exports/verify_audio_backdrop.py`
+  forces a refresh mid-playback and asserts the audio keeps playing.
+
+### Added (immersive)
+- **Launcher: `audioImages: [urls]` — foreground inspiring images during playback.** While an
+  `audio` program plays in the detail view, the app's OWN bundled images (a self-contained
+  list, NOT another app's collection) show full-bleed in the FOREGROUND, rotating every 12 s —
+  an immersive "feel inspired" moment; tap toggles pause, ← exits, removed on pause/leave.
+  daily-ritual ships 6 bundled images (`/media/inspire/*.png`: warm radial glows + uplifting
+  words, bright-centre/dark-edge so they read on the additive display too). Supersedes the
+  earlier dimmed-backdrop-from-wallpaper approach per user feedback ("separate, not from the
+  wallpaper app; foreground not background"). Both launchers. **Gate:**
+  `exports/verify_inspire.py` asserts the overlay is full-bleed on play, rotates, keeps audio
+  alive across a refresh, and is removed on leave. (App content, per later user feedback: the
+  inspire images are TEXT-FREE — words on-screen while audio plays is too much at once — and
+  the seed keeps only real human LibriVox readings; the synthetic TTS programs were removed.)
+  **Follow-up fix:** the overlay must NOT be gated on the audio `play` event — audio is
+  device-limited on the glasses, so a play-gated overlay never showed there. `wireInspire()`
+  now opens the overlay on entering an audio item's detail, independent of audio (best-effort
+  playback). Also swapped the generated gradient images for 6 real nature photographs
+  (Wikimedia Commons, CC-BY-SA, `/media/inspire/nature*.jpg` + ATTRIBUTION.txt). Gate:
+  `exports/verify_inspire_noaudio.py` blocks `HTMLMediaElement.play()` and asserts the image
+  still appears, loads, and rotates.
+
+### Fixed
+- **Launcher: ▶ Open (link/video) was a dead button wherever popups are blocked — including
+  the glasses.** `openURL()` only fell back to `location.href` when `window.open` *threw*, but a
+  blocked popup returns `null` without throwing, so on the glasses webview the action silently
+  did nothing (found by the user on-device: "youtube link doesnt work"). Now a null return
+  falls back to in-place navigation. Both launchers. **Gate:** `exports/repro_open_play.py`
+  simulates the blocked-popup device (`window.open = () => null`), presses Enter on ▶ Open
+  Play and asserts the URL changes; UI line noted in `apps/daily-ritual/verdict.md`.
+  Lesson folded into testing practice: verify a link action by *driving the tap end-to-end*
+  under device-realistic conditions, not by checking the target URL exists.
+
+### Added (loop hardening — "agent stopped nowhere")
+- **The loop can no longer be lost between sessions.** User finding: the agent still stranded
+  the loop mid-flow — a crashed/compacted session bypasses the Stop hook entirely (no stop
+  event → no enforcement), and re-orientation relied on a CLAUDE.md sentence (hope, not code).
+  Two code-level fixes, completing the state-machine work:
+  - **`SessionStart` hook** (`.claude/settings.json`, matcher `startup|resume|compact`) runs
+    `tools/loop_state.py --session-start`: the machine-computed loop state is *injected into
+    the agent's context* at every session start, resume, and compaction — deterministic
+    re-orientation after any kind of session death.
+  - **`tools/loop_runner.py`** (+ `runners/agent_loop.bat`) — the code-driven outer loop for
+    unattended runs: CODE recomputes the state each pass and hands a fresh `claude -p` exactly
+    ONE transition; stops at DONE or the COMMIT user gate, capped passes. The loop never lives
+    in the model's head, so it can't be forgotten. (The pattern good loop-agent repos use:
+    artifact-derived state + hook injection + an outer driver; the agent is a worker, the
+    queue is code.)
+
+### Added (loop hardening #2 — "the loop is not a loop")
+- **User findings now REOPEN the loop (findings.md).** User insight: after real-device testing
+  surfaced issues, the loop didn't restart — a PASS verdict was terminal, findings lived only in
+  conversation, and the user ended up hand-driving fixes. Now: report an issue → the agent
+  appends a `- [ ] <date> <finding>` line to **`apps/<slug>/findings.md`** *before* fixing;
+  `loop_state.py` treats any open box as a **FIX** state that overrides a PASS verdict, so the
+  state machine itself demands fix → re-evaluate → check-off. Intake rule documented in
+  AGENTS.md §D. This closes the loop's last conversational (non-artifact) edge:
+  build → verify → deploy → **user tests → findings.md → FIX** → re-verify.
+- **Launcher: `rotate` config — ambient slideshow.** `rotate: <seconds>` on a `fullscreen`
+  app auto-advances the open fullscreen view to the next item (min 3 s; manual ↑/↓ still
+  works) — built for rotating wallpapers (user request), works for any ambient display.
+  Both launchers; wallpaper ships with `rotate: 20` + 5 seeded glowing wallpapers.
+  **Gate:** scripted check `exports/verify_wallpaper_rotate.py` (footer 1/5→2/5 after one
+  period); UI look stays a human-eyeballed acceptance line (no-build rule).
+
+### Added
+- **Launcher: `audio` field type — directly embedded playback.** A field with
+  `type:"audio"` (a direct .mp3/.m4a/.wav URL, self-hostable under `worker/public/media/`)
+  renders an inline `<audio controls>` player in the detail view, and the glasses get a
+  D-pad-reachable **🔊 Play / pause** action — audio without leaving the app (vs `video`/
+  `link`, which stay "open a URL"). Both launchers. From the daily-ritual session ("is it
+  possible to directly embed audio…this is just link to YouTube"). **Gate:**
+  `tools/check.py` now validates every config field type against the known set **and**
+  asserts each rendered type is handled by BOTH launchers (string-marker parity).
+- **Launcher: no more blank empty states.** An empty collection used to render a dead
+  screen — worst on the glasses, where the user can't type their way out. Both launchers
+  now show a bright "Nothing here yet" hint that says what to do next (control-page apps →
+  "set it up on your phone"; add-apps → "add on phone/desktop"; readOnly feeds → "fed from
+  your PC, tools/push.py"); the fullscreen view's `no image` got the same treatment. From
+  user testing ("often it's empty and user cannot do anything… what helps if they see
+  nothing on meta glass"). **Gate:** standing EMPTY-STATE line auto-appended to every
+  `tools/evaluate.py` soft checklist (simulate an empty collection, screenshot both
+  surfaces); UI rendering itself is judged there per the no-build rule.
+- **Process: empty states are now part of Define + Evaluate.** `AGENTS.md`: every
+  per-surface plan must state what the user sees when the collection is EMPTY (plan a
+  hint or seeded starter content), and the evaluate step must simulate real user intents
+  (fresh install / all deleted / not yet pushed), not just the happy path. Presets are the
+  companion pattern: presentation-timer's control page gained one-tap 1/5/10/15/20-min
+  preset chips + seeded paused preset timers (`apps/presentation-timer/seed.json`), so the
+  glasses list is usable (Enter → ▶ Resume) before any setup. (The chips/seed are
+  app-level; the Define/Evaluate rule is the kit-level half.)
+
 ## 2026-07-09 — from user feedback on the build loop (stencil session)
 
 ### Added

@@ -53,7 +53,11 @@ Every app is always in exactly one state, computed from artifacts on disk (like 
   action). At a user gate, don't just stop: hand over ONE crisp ask.
 - **Enforced, not hoped:** a `Stop` hook (`.claude/settings.json`) runs `loop_state.py --stop-hook`;
   stopping while an agent-actionable transition remains on an app you touched gets blocked once and
-  the next action fed back to you. Don't fight it — advance the state.
+  the next action fed back to you. Don't fight it — advance the state. A `SessionStart` hook
+  injects the recomputed state into your context on every session start/resume/compaction, so a
+  crashed or compacted session re-orients deterministically — act on it. For unattended runs,
+  `python tools/loop_runner.py` is the code-driven outer loop: it hands a fresh `claude -p` one
+  transition per pass and stops at DONE or the COMMIT gate.
 - **Self-fix budget — fix first, ask late:** when a gate goes red, iterate fix → re-run **up to ~3
   times** before involving the user. If it's still red, stop with a short **blocker report**: what
   failed, what you tried, and the one question/permission that unblocks it. Never end a turn with a
@@ -109,6 +113,10 @@ does what" is exactly where glasses apps go wrong. This Define round happens **o
      page; capture (GPS 📍, camera, paste).
    - **Desktop (PC/agent)**: keyboard/bulk input, drag-and-drop, heavy compute feeding a
      `readOnly` display via `tools/push.py`.
+   **Every surface plan must also cover the EMPTY state** — what the user sees before the first
+   item, after deleting everything, or before the first push. Real users hit these states
+   constantly; a blank view is a dead end, especially on the glasses (no way to type your way
+   out). Plan a next-step hint or seeded starter content (presets, examples) per surface.
    Present the plan with the answers folded in, get the **one go-ahead** (covering the deploy),
    and don't re-open decisions mid-run.
 3. **Write the acceptance criteria + the surface plan** to `apps/<slug>/acceptance.md`
@@ -119,8 +127,11 @@ does what" is exactly where glasses apps go wrong. This Define round happens **o
 5. **Evaluate (the reward):** `python tools/evaluate.py <slug>` against a local `wrangler dev`.
    Two halves: the **hard gate** (`flowtest` — automated data/CRUD flow) **plus the soft gate** —
    you open the running app, **screenshot** the key state, and judge each acceptance line a script
-   can't (image renders, ▶ Open reachable, the flow reads well). Write the verdict to
-   `apps/<slug>/verdict.md`. **Both halves green = done**; on red, fix and re-run.
+   can't (image renders, ▶ Open reachable, the flow reads well). **Simulate real user intents,
+   not just the happy path**: the soft checklist includes a STANDING empty-state line — empty the
+   collection, screenshot glasses + phone, and confirm each surface tells the user what to do
+   next (never a blank view). Write the verdict to `apps/<slug>/verdict.md`.
+   **Both halves green = done**; on red, fix and re-run.
 
 **From a description** (e.g. *"a packing list with item + quantity, checkable"*):
 - Fastest: run `python tools/new_app.py` (interactive) — it scaffolds + registers the app.
@@ -189,8 +200,17 @@ Video **playback** is device-limited (128MB, additive display) — treat `video`
 ## D) Test → learn → harden → grow (the FINAL step — only when they're almost done)
 
 **Testing-driven improvement.** Once the app is live, invite the user to actually *use* it — real
-usage on a real phone/glasses finds what the automated gates can't. For each thing that breaks or
-confuses them, fix it, then sort the fix into one of two lanes:
+usage on a real phone/glasses finds what the automated gates can't.
+
+**Intake FIRST — user findings are loop state, not conversation.** The moment the user reports
+something broken/confusing, append it as a `- [ ] YYYY-MM-DD <finding>` line to
+**`apps/<slug>/findings.md`** *before* fixing anything. `loop_state.py` treats any open `- [ ]`
+line as a **FIX** state that overrides a PASS verdict — the loop *re-opens itself* instead of
+relying on you (or the user) to remember mid-conversation. Fix, re-run `evaluate.py`, then flip
+the line to `- [x]` with a one-line resolution. A PASS verdict is never terminal; only a
+findings file with no open boxes is.
+
+For each thing that breaks or confuses them, fix it, then sort the fix into one of two lanes:
 - **App-specific** ("this app needs a control page") → just fix the app. Does **not** touch the kit.
 - **Kit-level** (a launcher/worker/tooling bug that would bite every fork) → after fixing, leave a
   regression **gate** so it can't recur (prefer a `tools/flowtest.py` assertion or a `tools/check.py`
@@ -252,6 +272,8 @@ itself (missing `verdict.md`, app not registered, not deployed), so a half-finis
 ## Command reference
 ```
 python tools/status.py           # where am I / what's next  (run this first)
+python tools/loop_state.py       # the build loop's state machine: per-app state + THE next action
+python tools/loop_runner.py      # code-driven outer loop: one `claude -p` pass per transition, stops at user gates
 runners/deploy_worker.bat        # deploy Cloudflare Worker + D1 (guided)
 python tools/new_app.py          # scaffold a new app from prompts (auto-syncs to public)
 python tools/sync_public.py      # mirror apps/ -> worker/public/ (run after editing a config)
