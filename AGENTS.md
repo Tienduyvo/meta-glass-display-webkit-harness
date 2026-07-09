@@ -40,6 +40,27 @@ is an inactive **reference pattern** (e.g. `places`, `watch`) — copy/register 
 > URL). **`worker/public/index.html`** = production, served by the Worker (same-origin API, password
 > only). Don't copy one over the other; `sync_public.py` only touches app configs, never `index.html`.
 
+### The loop is a STATE MACHINE — you own the transitions, the user never asks "what's next"
+Every app is always in exactly one state, computed from artifacts on disk (like `git status`):
+
+    DEFINE → BUILD → VERIFY → SYNC → DEPLOY → COMMIT (user gate) → DONE (test-invite / share)
+
+- **`python tools/loop_state.py`** prints each app's state and **THE next action**. Run it whenever
+  you're unsure where you are — and mentally before ending any turn.
+- **Transition rule:** if the next action needs no user input, **do it now, in the same turn** —
+  never end a turn on a state you could have advanced yourself. End a turn only at DONE or a
+  genuine **user gate** (Define answers, commit approval, real-device testing, a paid/irreversible
+  action). At a user gate, don't just stop: hand over ONE crisp ask.
+- **Enforced, not hoped:** a `Stop` hook (`.claude/settings.json`) runs `loop_state.py --stop-hook`;
+  stopping while an agent-actionable transition remains on an app you touched gets blocked once and
+  the next action fed back to you. Don't fight it — advance the state.
+- **Self-fix budget — fix first, ask late:** when a gate goes red, iterate fix → re-run **up to ~3
+  times** before involving the user. If it's still red, stop with a short **blocker report**: what
+  failed, what you tried, and the one question/permission that unblocks it. Never end a turn with a
+  silent failure, and never ask before you've spent your own attempts.
+- Committed apps that predate a gate show up as **backlog** — improve them when they're next
+  touched; don't churn the whole repo to satisfy a new gate.
+
 ### Run the loop end-to-end — front-load approvals, then don't stop to ask
 **You (Claude) run the loop.** Gather every decision and approval the run needs **at the very start**,
 in one message, then execute build → verify → deploy → hand-off **without pausing to ask again**.

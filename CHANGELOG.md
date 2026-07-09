@@ -13,6 +13,29 @@ cheaply (no-build rule) stay as human-eyeballed lines in an app's `acceptance.md
 
 ## 2026-07-09 — from user feedback on the build loop (stencil session)
 
+### Added
+- **Launcher: fullscreen apps are now browse-in-place.** For a config with `fullscreen:true`
+  (stencil, wallpaper), the glasses open **directly into the fullscreen view** (newest item, no
+  list step) and **D-pad ↑/↓ switches to the prev/next item** without leaving it; the footer
+  shows `n/total`. Came from the stencil Define round ("glasses with AR effect main driver…
+  one stencil at a time, navigate with D-pad"). Both launchers. **Gate:** human-eyeballed lines
+  in `apps/stencil/acceptance.md`/`verdict.md` (UI-only; no-build rule).
+
+### Added (2)
+- **The loop is now an enforced state machine.** Second user finding of the session: after fixing
+  permissions, the loop still relied on the *user* asking "what's next". Now the state is explicit
+  and machine-checked, the way mature repos do it (`git status` model + hook enforcement):
+  - **`tools/loop_state.py`** computes each app's state from artifacts (DEFINE → VERIFY → FIX →
+    SYNC → DEPLOY → COMMIT → DONE) — incl. a live HTTP compare of the deployed worker vs
+    `worker/public` — and prints THE next action. `status.py` embeds the table.
+  - **Stop hook** (`.claude/settings.json`): an agent stopping while an agent-actionable
+    transition remains on an app it touched (git-dirty) gets blocked once and the next action fed
+    back (`stop_hook_active` honored, so it can't loop). Clean/committed apps that predate a gate
+    are *backlog*, never nagged.
+  - **Runbook rule** (AGENTS.md "STATE MACHINE"): advance any state that needs no user input in
+    the same turn; on red gates self-fix up to ~3 iterations before asking; end turns only at DONE
+    or a user gate, handing over one crisp ask. **Gate:** the Stop hook itself.
+
 ### Changed
 - **Runbook: define → plan surfaces → build (don't run with the idea).** AGENTS.md's Define phase
   previously discouraged clarifying questions ("at most 1–2 — often zero"); in practice agents

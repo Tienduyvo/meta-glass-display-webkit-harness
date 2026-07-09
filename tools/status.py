@@ -17,9 +17,21 @@ def d1_configured():
     try:
         t = open(p, encoding="utf-8").read()
         m = re.search(r'database_id\s*=\s*"([^"]*)"', t)
-        return bool(m and "REPLACE" not in m.group(1) and m.group(1).strip())
+        if m and "REPLACE" not in m.group(1) and m.group(1).strip():
+            return True
     except Exception:
-        return False
+        pass
+    # wrangler.toml holds the placeholder between deploys (by design — no personal id in git);
+    # a live worker answering /health means the backend IS deployed (deploy.py re-links the id).
+    try:
+        sys.path.insert(0, os.path.join(ROOT, "tools"))
+        import loop_state
+        base = loop_state._launcher_base()
+        if base:
+            return b"true" in (loop_state._get(base + "/health") or b"")
+    except Exception:
+        pass
+    return False
 
 def published():
     try:
@@ -60,6 +72,13 @@ def main():
     if drift:
         print(f"[!] worker/public out of sync ({len(drift)}): run runners/redeploy.bat (syncs + deploys)")
     print("[i] Worker URL + password: entered once in the launcher (browser) — not detectable here")
+
+    try:
+        sys.path.insert(0, os.path.join(ROOT, "tools"))
+        import loop_state
+        loop_state.print_table()
+    except Exception as e:
+        print("[i] loop state unavailable: " + str(e))
 
     print("\nNext step:")
     if not node:
