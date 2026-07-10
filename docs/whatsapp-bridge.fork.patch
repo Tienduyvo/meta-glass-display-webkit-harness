@@ -1,0 +1,667 @@
+diff --git a/bun.lock b/bun.lock
+index 51d6c7d..04cee11 100644
+--- a/bun.lock
++++ b/bun.lock
+@@ -524,7 +524,7 @@
+ 
+     "levn": ["levn@0.4.1", "", { "dependencies": { "prelude-ls": "^1.2.1", "type-check": "~0.4.0" } }, "sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ=="],
+ 
+-    "libsignal": ["@whiskeysockets/libsignal-node@github:whiskeysockets/libsignal-node#1c30d7d", { "dependencies": { "curve25519-js": "^0.0.4", "protobufjs": "6.8.8" } }, "WhiskeySockets-libsignal-node-1c30d7d"],
++    "libsignal": ["@whiskeysockets/libsignal-node@github:whiskeysockets/libsignal-node#1c30d7d", { "dependencies": { "curve25519-js": "^0.0.4", "protobufjs": "6.8.8" } }, "WhiskeySockets-libsignal-node-1c30d7d", "sha512-5q4/OuDQaMYx3RpDqMqS3WYyqjrsSMpU8ipQZtpYnm5l6DwNoLV9oIYMDK0NILKW+tyk3tVCIA11BMYQ+A1+GA=="],
+ 
+     "lines-and-columns": ["lines-and-columns@1.2.4", "", {}, "sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg=="],
+ 
+diff --git a/src/claude/permissions.ts b/src/claude/permissions.ts
+index 6ed6fbb..de34be6 100644
+--- a/src/claude/permissions.ts
++++ b/src/claude/permissions.ts
+@@ -72,9 +72,26 @@ export class PermissionManager extends EventEmitter {
+      * Returns true if a permission was resolved
+      */
+     tryResolveFromMessage(message: string): boolean {
+-        const trimmed = message.trim().toUpperCase()
+-        const isYes = trimmed === 'Y' || trimmed === 'YES' || trimmed === 'ALLOW'
+-        const isNo = trimmed === 'N' || trimmed === 'NO' || trimmed === 'DENY'
++        // Dictation-friendly (glasses voice input): strip punctuation (dictation inserts
++        // commas/periods freely), accept German + natural words, not just single letters.
++        // Social mode: natural spoken phrases so approving doesn't sound robotic in public.
++        // Only unambiguous phrases — e.g. NOT "passt schon" (often means "forget it").
++        const trimmed = message
++            .trim()
++            .replace(/[.,!?'’]+/g, '')
++            .replace(/\s+/g, ' ')
++            .toUpperCase()
++        const isYes = [
++            'Y', 'YES', 'ALLOW', 'JA', 'OK', 'OKAY', 'ERLAUBEN',
++            'GO AHEAD', 'DO IT', 'SURE', 'SOUNDS GOOD', 'GO FOR IT', 'WHY NOT',
++            'LETS DO IT', 'YEAH', 'YEP', 'YES PLEASE', 'YEAH DO IT', 'YES DO IT',
++            'OK DO IT', 'OKAY DO IT', 'MACH DAS', 'MACH ES'
++        ].includes(trimmed)
++        const isNo = [
++            'N', 'NO', 'DENY', 'NEIN', 'STOP', 'STOPP', 'ABLEHNEN',
++            'LETS NOT', 'LEAVE IT', 'SKIP IT', 'HOLD OFF', 'NOT NOW', 'NOPE',
++            'FORGET IT', 'DONT', 'NO THANKS', 'LASS ES', 'LASS MAL', 'LIEBER NICHT'
++        ].includes(trimmed)
+ 
+         if (!isYes && !isNo) {
+             return false
+diff --git a/src/claude/relay-backend.ts b/src/claude/relay-backend.ts
+new file mode 100644
+index 0000000..ffa06b8
+--- /dev/null
++++ b/src/claude/relay-backend.ts
+@@ -0,0 +1,159 @@
++import {
++    appendFileSync,
++    existsSync,
++    mkdirSync,
++    readFileSync,
++    readdirSync,
++    statSync,
++    unlinkSync
++} from 'fs'
++import { join } from 'path'
++import { randomUUID } from 'crypto'
++import {
++    ClaudeBackend,
++    type ClaudeResponse,
++    type PermissionCallback,
++    type SessionCallback
++} from './backend.ts'
++import type { Config, PermissionMode } from '../types.ts'
++import type { Logger } from '../utils/logger.ts'
++
++// The listener (an interactive Claude Code session watching inbox.jsonl) touches
++// listener.alive every few seconds. Older than this = listener gone, fall back
++// to the headless SDK backend so the bridge never goes dark.
++const HEARTBEAT_MAX_AGE_MS = 60_000
++const REPLY_TIMEOUT_MS = 10 * 60_000
++const POLL_INTERVAL_MS = 500
++
++/**
++ * Relay backend: hands incoming messages to a LIVE interactive Claude Code
++ * session on this machine instead of spawning a headless SDK session.
++ * Interactive sessions have capabilities headless ones can't get (the Claude
++ * in Chrome extension connects via native messaging to interactive sessions
++ * only), so relaying gives WhatsApp the full desktop toolset.
++ *
++ * Protocol (all files under the relay dir, e.g. ~/.whatsapp-claude-agent/relay):
++ *   inbox.jsonl        daemon appends {id, ts, text} per incoming message
++ *   outbox/<id>.txt    listener writes the reply (atomically: .tmp then rename)
++ *   listener.alive     listener touches this as a heartbeat
++ *
++ * Enabled via the WA_RELAY_DIR environment variable. Falls back to the wrapped
++ * SDK backend when no listener heartbeat is fresh; fallback replies are
++ * prefixed with [headless] so the user knows the desktop session was offline.
++ */
++export class RelayBackend extends ClaudeBackend {
++    private inner: ClaudeBackend
++    private inboxPath: string
++    private outboxDir: string
++    private heartbeatPath: string
++
++    constructor(config: Config, logger: Logger, inner: ClaudeBackend, relayDir: string) {
++        super(config, logger)
++        this.inner = inner
++        this.inboxPath = join(relayDir, 'inbox.jsonl')
++        this.outboxDir = join(relayDir, 'outbox')
++        this.heartbeatPath = join(relayDir, 'listener.alive')
++
++        mkdirSync(this.outboxDir, { recursive: true })
++        // Orphaned replies from a previous run would be misdelivered to new ids
++        // never — ids are unique — but they'd accumulate forever; clear them.
++        for (const f of readdirSync(this.outboxDir)) {
++            try {
++                unlinkSync(join(this.outboxDir, f))
++            } catch {
++                // best effort
++            }
++        }
++        this.logger.info(`Relay mode enabled: ${relayDir} (fallback: headless SDK)`)
++    }
++
++    private listenerAlive(): boolean {
++        try {
++            const age = Date.now() - statSync(this.heartbeatPath).mtimeMs
++            return age < HEARTBEAT_MAX_AGE_MS
++        } catch {
++            return false
++        }
++    }
++
++    private async fallback(
++        prompt: string,
++        conversationHistory: string[] | undefined,
++        reason: string
++    ): Promise<ClaudeResponse> {
++        this.logger.warn(`Relay fallback to headless SDK backend: ${reason}`)
++        const res = await this.inner.query(prompt, conversationHistory)
++        if (res.error) return res
++        return { ...res, text: `[headless] ${res.text}` }
++    }
++
++    async query(prompt: string, conversationHistory?: string[]): Promise<ClaudeResponse> {
++        if (!this.listenerAlive()) {
++            return this.fallback(prompt, conversationHistory, 'no listener heartbeat')
++        }
++
++        const id = randomUUID()
++        const record = { id, ts: new Date().toISOString(), text: prompt }
++        appendFileSync(this.inboxPath, JSON.stringify(record) + '\n')
++        this.logger.info(`Relayed message ${id} to listener, waiting for reply...`)
++
++        const replyPath = join(this.outboxDir, `${id}.txt`)
++        const deadline = Date.now() + REPLY_TIMEOUT_MS
++        while (Date.now() < deadline) {
++            if (existsSync(replyPath)) {
++                const text = readFileSync(replyPath, 'utf-8').trim()
++                try {
++                    unlinkSync(replyPath)
++                } catch {
++                    // best effort
++                }
++                this.logger.info(`Relay reply for ${id}: ${text.length} chars`)
++                return { text: text || 'No response generated.' }
++            }
++            if (!this.listenerAlive()) {
++                return this.fallback(prompt, conversationHistory, 'listener died mid-wait')
++            }
++            await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
++        }
++        return this.fallback(prompt, conversationHistory, `no reply within ${REPLY_TIMEOUT_MS}ms`)
++    }
++
++    async stop(): Promise<void> {
++        await this.inner.stop()
++    }
++
++    // The fallback path must behave exactly like a plain SDK run, so every
++    // mutable knob is forwarded to the wrapped backend. Config-object setters
++    // in the base class already share state (same config reference).
++
++    override setMode(mode: PermissionMode): void {
++        super.setMode(mode)
++        this.inner.setMode(mode)
++    }
++
++    override setPermissionCallback(callback: PermissionCallback): void {
++        super.setPermissionCallback(callback)
++        this.inner.setPermissionCallback(callback)
++    }
++
++    override setSessionCallback(callback: SessionCallback): void {
++        super.setSessionCallback(callback)
++        this.inner.setSessionCallback(callback)
++    }
++
++    override getSessionId(): string | undefined {
++        return this.inner.getSessionId()
++    }
++
++    override setSessionId(sessionId: string | undefined): void {
++        this.inner.setSessionId(sessionId)
++    }
++
++    override setForkSession(fork: boolean): void {
++        this.inner.setForkSession(fork)
++    }
++
++    override getForkSession(): boolean {
++        return this.inner.getForkSession()
++    }
++}
+diff --git a/src/claude/sdk-backend.ts b/src/claude/sdk-backend.ts
+index 2a1a52a..e791315 100644
+--- a/src/claude/sdk-backend.ts
++++ b/src/claude/sdk-backend.ts
+@@ -111,17 +111,33 @@ export class SDKBackend extends ClaudeBackend {
+         | string
+         | { type: 'preset'; preset: 'claude_code'; append?: string }
+         | undefined {
++        // Always teach the image-marker convention: a reply line
++        // [[img:<absolute path>|<caption>]] is sent as a real WhatsApp photo
++        // (handled in whatsapp/client.ts sendMessage).
++        const IMG_HINT =
++            'Image sending over WhatsApp: to deliver an image FILE to the user, put a line ' +
++            '`[[img:<absolute file path>|<short caption>]]` in your reply — the bridge strips it ' +
++            'and sends the file as a real WhatsApp photo. One marker per line, absolute paths only. ' +
++            'Use this whenever a picture would beat a description (screenshots, rendered output).'
++        // Standard reply style: the user is usually on voice-only smart glasses, often
++        // around other people. The register is a normal phone call — natural speech is
++        // fine, robotic phrasing ("Option 1", "Stopp") is what gives it away.
++        const STYLE_HINT =
++            'REPLY STYLE (always): write in English like a friend on a phone call: short ' +
++            'plain sentences, no lists, no numbered options, no emojis, no markdown, no ' +
++            'technical jargon unless the user asks for detail. Offer choices as casual ' +
++            'either/or questions so a natural spoken sentence answers them, and understand ' +
++            'replies that echo a keyword of an option instead of a number. Keep replies ' +
++            'glance-safe: a bystander seeing the screen should read harmless small talk. ' +
++            'The user dictates by voice and cannot type.'
++        const HINTS = IMG_HINT + '\n\n' + STYLE_HINT
+         if (this.config.systemPrompt) {
+-            return this.config.systemPrompt
++            return this.config.systemPrompt + '\n\n' + HINTS
+         }
+-        if (this.config.systemPromptAppend) {
+-            return {
+-                type: 'preset',
+-                preset: 'claude_code',
+-                append: this.config.systemPromptAppend
+-            }
+-        }
+-        return { type: 'preset', preset: 'claude_code' }
++        const append = this.config.systemPromptAppend
++            ? this.config.systemPromptAppend + '\n\n' + HINTS
++            : HINTS
++        return { type: 'preset', preset: 'claude_code', append }
+     }
+ 
+     async query(prompt: string, conversationHistory?: string[]): Promise<ClaudeResponse> {
+diff --git a/src/conversation/manager.ts b/src/conversation/manager.ts
+index 8d6e734..6cda2e9 100644
+--- a/src/conversation/manager.ts
++++ b/src/conversation/manager.ts
+@@ -1,6 +1,6 @@
+ import { EventEmitter } from 'events'
+-import { existsSync, statSync } from 'fs'
+-import { resolve } from 'path'
++import { existsSync, statSync, readdirSync, readFileSync } from 'fs'
++import { resolve, join } from 'path'
+ import { homedir } from 'os'
+ import { ConversationHistory } from './history.ts'
+ import { MessageQueue } from './queue.ts'
+@@ -131,6 +131,29 @@ export class ConversationManager extends EventEmitter {
+             return
+         }
+ 
++        // Voice-friendly shortcuts (glasses dictation can't type slash commands):
++        // a bare "sessions"/"sitzungen" lists sessions, and for 5 minutes after a
++        // listing a bare number picks that session — no "/" needed.
++        const bare = message.text.trim().toLowerCase().replace(/[.!?]$/, '')
++        if (/^(sessions?|sitzungen|session liste|list sessions|letzte sessions)$/.test(bare)) {
++            await this.handleSessionsListCommand(sendResponse)
++            return
++        }
++        const NUMBER_WORDS: Record<string, string> = {
++            eins: '1', zwei: '2', drei: '3', vier: '4', 'fünf': '5', sechs: '6', sieben: '7', acht: '8',
++            one: '1', two: '2', three: '3', four: '4', five: '5', six: '6', seven: '7', eight: '8'
++        }
++        const pick = /^[1-8]$/.test(bare) ? bare : NUMBER_WORDS[bare]
++        if (
++            pick &&
++            this.lastSessionListing.length > 0 &&
++            Date.now() - this.sessionListShownAt < 5 * 60_000
++        ) {
++            this.sessionListShownAt = 0
++            await this.handleSessionCommand(pick, sendResponse)
++            return
++        }
++
+         // Regular message - process with Claude
+         await this.processWithClaude(message, sendResponse, sendTyping)
+     }
+@@ -218,6 +241,10 @@ export class ConversationManager extends EventEmitter {
+                 await this.handleSessionCommand(parsed.args, sendResponse)
+                 break
+ 
++            case 'sessions':
++                await this.handleSessionsListCommand(sendResponse)
++                break
++
+             case 'fork':
+                 await this.handleForkCommand(sendResponse)
+                 break
+@@ -323,12 +350,87 @@ export class ConversationManager extends EventEmitter {
+         )
+     }
+ 
++    // Session ids listed by the last /sessions call, so /session <n> can pick by number.
++    private lastSessionListing: string[] = []
++    // When the listing was last shown — enables bare-number picks for a short window.
++    private sessionListShownAt = 0
++
++    /**
++     * List recent local Claude Code sessions for this working directory
++     * (transcripts live in ~/.claude/projects/<munged cwd>/<uuid>.jsonl).
++     */
++    private async handleSessionsListCommand(
++        sendResponse: (text: string) => Promise<void>
++    ): Promise<void> {
++        const munged = resolve(this.config.directory).replace(/[^a-zA-Z0-9]/g, '-')
++        const dir = join(homedir(), '.claude', 'projects', munged)
++        if (!existsSync(dir)) {
++            await sendResponse('No local sessions found for this directory yet.')
++            return
++        }
++        const files = readdirSync(dir)
++            .filter((f) => f.endsWith('.jsonl'))
++            .map((f) => ({ id: f.slice(0, -6), path: join(dir, f), mtime: statSync(join(dir, f)).mtimeMs }))
++            .sort((a, b) => b.mtime - a.mtime)
++            .slice(0, 8)
++        if (files.length === 0) {
++            await sendResponse('No local sessions found for this directory yet.')
++            return
++        }
++        const snippet = (path: string): string => {
++            try {
++                const lines = readFileSync(path, 'utf-8').split('\n', 200)
++                for (const line of lines) {
++                    if (!line.includes('"user"')) continue
++                    try {
++                        const j = JSON.parse(line)
++                        const c = j?.message?.content
++                        const t = typeof c === 'string'
++                            ? c
++                            : Array.isArray(c)
++                              ? c.filter((x: any) => x?.type === 'text').map((x: any) => x.text).join(' ')
++                              : ''
++                        const clean = String(t).replace(/\s+/g, ' ').trim()
++                        if (clean && !clean.startsWith('<')) return clean.slice(0, 70)
++                    } catch { /* not json / no content — keep scanning */ }
++                }
++            } catch { /* unreadable file */ }
++            return '(no preview)'
++        }
++        this.lastSessionListing = files.map((f) => f.id)
++        this.sessionListShownAt = Date.now()
++        const current = this.backend.getSessionId()
++        const fmt = (ms: number) => {
++            const d = new Date(ms)
++            return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}. ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
++        }
++        const rows = files.map((f, i) =>
++            `*${i + 1}.* ${fmt(f.mtime)}${f.id === current ? ' (current)' : ''}\n   _${snippet(f.path)}_`
++        )
++        await sendResponse(
++            `*Recent local sessions:*\n\n${rows.join('\n')}\n\nReply with just the number to resume.`
++        )
++    }
++
+     private async handleSessionCommand(
+         args: string,
+         sendResponse: (text: string) => Promise<void>
+     ): Promise<void> {
+         const currentSessionId = this.backend.getSessionId()
+ 
++        // /session <n> — pick from the last /sessions listing by number
++        if (/^[1-9][0-9]?$/.test(args.trim())) {
++            const idx = parseInt(args.trim(), 10) - 1
++            const picked = this.lastSessionListing[idx]
++            if (picked) {
++                this.backend.setSessionId(picked)
++                await sendResponse(`✓ Session set to *${idx + 1}* (\`${picked}\`).\n\nNext message resumes it.`)
++                return
++            }
++            await sendResponse('No listing to pick from — send /sessions first.')
++            return
++        }
++
+         if (!args) {
+             // Show current session info
+             if (currentSessionId) {
+@@ -724,6 +826,8 @@ Use \`/config save\` to save to file.`
+ /clear - Clear conversation history
+ /status - Show agent status
+ /session - Show current session ID
++/sessions - List recent local sessions to resume
++/session <n> - Resume session <n> from /sessions
+ /session <id> - Set session ID to resume
+ /session clear - Start a new session
+ /fork - Fork current session (branch off)
+diff --git a/src/index.ts b/src/index.ts
+index e1da2dc..d36180f 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -4,6 +4,7 @@ import { isUpdateFlag, runUpdate } from './cli/update.ts'
+ import { createLogger } from './utils/logger.ts'
+ import { WhatsAppClient } from './whatsapp/client.ts'
+ import { SDKBackend } from './claude/sdk-backend.ts'
++import { RelayBackend } from './claude/relay-backend.ts'
+ import { ConversationManager } from './conversation/manager.ts'
+ import { phoneToJid } from './utils/phone.ts'
+ import type { Config, AgentEvent, IncomingMessage, PermissionRequest } from './types.ts'
+@@ -59,8 +60,13 @@ async function main() {
+         }
+     }
+ 
+-    // Create Claude backend
+-    const backend = new SDKBackend(config, logger)
++    // Create Claude backend. WA_RELAY_DIR switches to relay mode: messages go
++    // to a live interactive Claude Code session (which has the Chrome
++    // extension); the SDK backend stays as the offline fallback.
++    const relayDir = process.env['WA_RELAY_DIR']
++    const backend = relayDir
++        ? new RelayBackend(config, logger, new SDKBackend(config, logger), relayDir)
++        : new SDKBackend(config, logger)
+ 
+     // Set up session callback to log session info with usage instructions
+     const executableName = process.argv[1]
+@@ -133,6 +139,31 @@ async function main() {
+     async function sendStartupAnnouncement() {
+         const groupConfig = whatsapp.getGroupConfig()
+         const { name, host } = config.agentIdentity
++        // In relay mode the SDK model is only the fallback — announcing it as THE
++        // model misleads. Report what is actually answering RIGHT NOW: check the
++        // listener heartbeat (fresh < 60s) and let the listener name its own model
++        // via relay/listener.info ({"model": ...}).
++        let backendInfo = config.model
++        const relayDir = process.env['WA_RELAY_DIR']
++        if (relayDir) {
++            let listenerAlive = false
++            let listenerModel = 'desktop session'
++            try {
++                const { statSync, readFileSync } = await import('fs')
++                const { join } = await import('path')
++                listenerAlive =
++                    Date.now() - statSync(join(relayDir, 'listener.alive')).mtimeMs < 60_000
++                const info = JSON.parse(
++                    readFileSync(join(relayDir, 'listener.info'), 'utf-8')
++                ) as { model?: string }
++                if (info.model) listenerModel = info.model
++            } catch {
++                // no heartbeat/info file yet — treat as no listener
++            }
++            backendInfo = listenerAlive
++                ? `${listenerModel} (live desktop relay; headless fallback: ${config.model})`
++                : `${config.model} headless (no desktop listener right now)`
++        }
+ 
+         if (groupConfig) {
+             // Group mode: Send announcement to the group
+@@ -142,7 +173,7 @@ async function main() {
+ 🖥️ Host: ${host}
+ 📁 Directory: ${config.directory}
+ 🔐 Mode: ${config.mode}
+-🧠 Model: ${config.model}
++🧠 Backend: ${backendInfo}
+ 👥 Chat: Group
+ 
+ *Target me with:*
+@@ -167,7 +198,7 @@ Check if online: */agent*`
+ 🖥️ Host: ${host}
+ 📁 Directory: ${config.directory}
+ 🔐 Mode: ${config.mode}
+-🧠 Model: ${config.model}
++🧠 Backend: ${backendInfo}
+ 💬 Chat: Private
+ 
+ Type */help* for available commands.`
+diff --git a/src/whatsapp/client.ts b/src/whatsapp/client.ts
+index 513db2c..52d74d9 100644
+--- a/src/whatsapp/client.ts
++++ b/src/whatsapp/client.ts
+@@ -1,11 +1,15 @@
+ import makeWASocket, {
+     DisconnectReason,
++    downloadMediaMessage,
+     fetchLatestBaileysVersion,
+     makeCacheableSignalKeyStore,
+     type WASocket,
+     type BaileysEventMap
+ } from '@whiskeysockets/baileys'
+ import { EventEmitter } from 'events'
++import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'fs'
++import { homedir } from 'os'
++import { join } from 'path'
+ import pino from 'pino'
+ // @ts-expect-error - qrcode-terminal doesn't have type declarations
+ import qrcode from 'qrcode-terminal'
+@@ -32,6 +36,7 @@ export class WhatsAppClient extends EventEmitter {
+     private isReady = false
+     private startTime: Date
+     private sentMessageIds: Set<string> = new Set() // Track messages we send to avoid loops
++    private processedMessageIds: Set<string> = new Set() // WhatsApp re-delivers un-acked messages on reconnect; each ID is handled once
+     private groupConfig: GroupConfig | null = null // Group mode configuration
+ 
+     constructor(config: Config, logger: Logger) {
+@@ -131,8 +136,14 @@ export class WhatsAppClient extends EventEmitter {
+         // Credentials update
+         sock.ev.on('creds.update', saveCreds)
+ 
+-        // Message handling
++        // Message handling. Only 'notify' upserts are genuinely new messages —
++        // 'append' and history-sync upserts replay recent chat history on every
++        // reconnect and must never re-trigger the agent.
+         sock.ev.on('messages.upsert', async (upsert) => {
++            if (upsert.type !== 'notify') {
++                this.logger.debug(`Ignoring messages.upsert of type '${upsert.type}'`)
++                return
++            }
+             for (const msg of upsert.messages) {
+                 await this.handleMessage(msg)
+             }
+@@ -162,6 +173,17 @@ export class WhatsAppClient extends EventEmitter {
+             return
+         }
+ 
++        // Dedup re-delivered messages (reconnects, retries) by ID
++        if (this.processedMessageIds.has(msg.id)) {
++            this.logger.debug(`Ignoring already-processed message ${msg.id}`)
++            return
++        }
++        this.processedMessageIds.add(msg.id)
++        if (this.processedMessageIds.size > 1000) {
++            const oldest = this.processedMessageIds.values().next().value
++            if (oldest !== undefined) this.processedMessageIds.delete(oldest)
++        }
++
+         // Determine filtering logic based on group mode
+         if (this.groupConfig) {
+             // GROUP MODE: Only process messages from the joined group
+@@ -224,6 +246,16 @@ export class WhatsAppClient extends EventEmitter {
+             }
+         }
+ 
++        // Ack now that the sender is trusted — WhatsApp keeps re-delivering
++        // un-acked messages on every reconnect, which looped old prompts into
++        // the agent. Never ack before the whitelist gate (no read receipts to
++        // strangers).
++        try {
++            await this.socket?.readMessages([rawMsg.key])
++        } catch (err) {
++            this.logger.debug(`Failed to send read receipt: ${err}`)
++        }
++
+         // Check if message is within threshold (for missed messages)
+         if (msg.timestamp < this.startTime) {
+             if (!this.config.processMissed) {
+@@ -239,6 +271,32 @@ export class WhatsAppClient extends EventEmitter {
+             this.logger.info(`Processing missed message from ${msg.from}`)
+         }
+ 
++        // Incoming image (only AFTER the whitelist gate — never download strangers' media):
++        // save it locally and hand Claude the file path; the Read tool views images natively,
++        // so the session can see, analyze, edit (e.g. via Python/PIL) and send results back.
++        if (rawMsg.message?.imageMessage && !msg.isFromMe) {
++            try {
++                const buf = (await downloadMediaMessage(
++                    rawMsg,
++                    'buffer',
++                    {},
++                    { logger: silentLogger, reuploadRequest: this.socket!.updateMediaMessage }
++                )) as Buffer
++                const mime = rawMsg.message.imageMessage.mimetype ?? 'image/jpeg'
++                const ext = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg'
++                const dir = join(homedir(), '.whatsapp-claude-agent', 'inbox')
++                mkdirSync(dir, { recursive: true })
++                const file = join(dir, `img-${Date.now()}.${ext}`)
++                writeFileSync(file, buf)
++                this.logger.info(`Saved incoming image (${buf.length} bytes) to ${file}`)
++                msg.text =
++                    (msg.text ? msg.text + '\n\n' : '') +
++                    `[The user attached an image, saved at: ${file} — open it with the Read tool to view it.]`
++            } catch (err) {
++                this.logger.warn(`Failed to download incoming image: ${err}`)
++            }
++        }
++
+         const displayFrom = msg.participant || msg.from
+         this.logger.info(
+             `Message from ${displayFrom}: "${msg.text.slice(0, 50)}${msg.text.length > 50 ? '...' : ''}"`
+@@ -251,6 +309,39 @@ export class WhatsAppClient extends EventEmitter {
+             throw new Error('WhatsApp client not ready')
+         }
+ 
++        // Image markers: `[[img:/abs/path.png|optional caption]]` anywhere in the response
++        // is stripped from the text and sent as an actual image message. This lets the
++        // Claude session send screenshots / rendered snippets, not just describe them.
++        const images: { path: string; caption: string }[] = []
++        text = text.replace(
++            /\[\[img:([^\]|]+?)(?:\|([^\]]*))?\]\]/g,
++            (_all, p, c) => {
++                images.push({ path: String(p).trim(), caption: (c ?? '').trim() })
++                return ''
++            }
++        ).replace(/\n{3,}/g, '\n\n').trim()
++
++        for (const img of images) {
++            if (!existsSync(img.path)) {
++                this.logger.warn(`Image marker points to missing file: ${img.path}`)
++                continue
++            }
++            try {
++                const result = await this.socket.sendMessage(to, {
++                    image: readFileSync(img.path),
++                    caption: img.caption || undefined
++                })
++                if (result?.key?.id) {
++                    this.sentMessageIds.add(result.key.id)
++                    setTimeout(() => this.sentMessageIds.delete(result.key.id!), 60000)
++                }
++                this.logger.info(`Sent image ${img.path} to ${to}`)
++            } catch (err) {
++                this.logger.error(`Failed to send image ${img.path}: ${err}`)
++            }
++        }
++        if (!text) return
++
+         // Prefix message with agent identity
+         const prefixedText = formatMessageWithAgentName(this.config.agentIdentity, text)
+         const chunks = chunkMessage(prefixedText)
+diff --git a/src/whatsapp/messages.ts b/src/whatsapp/messages.ts
+index 1afefbc..8e3fd9b 100644
+--- a/src/whatsapp/messages.ts
++++ b/src/whatsapp/messages.ts
+@@ -18,9 +18,10 @@ export function extractMessageText(msg: WAMessage): string | null {
+         return message.extendedTextMessage.text
+     }
+ 
+-    // Image/video with caption
+-    if (message.imageMessage?.caption) {
+-        return message.imageMessage.caption
++    // Image — WITH or WITHOUT caption (captionless images must still flow through,
++    // the client downloads the media and appends a file-path note for Claude)
++    if (message.imageMessage) {
++        return message.imageMessage.caption ?? ''
+     }
+     if (message.videoMessage?.caption) {
+         return message.videoMessage.caption
+@@ -39,7 +40,7 @@ export function extractMessageText(msg: WAMessage): string | null {
+  */
+ export function parseMessage(msg: WAMessage): IncomingMessage | null {
+     const text = extractMessageText(msg)
+-    if (!text) return null
++    if (text === null) return null // '' is valid: a captionless image
+ 
+     const key = msg.key
+     if (!key.remoteJid || !key.id) return null

@@ -1,15 +1,54 @@
 # WhatsApp bridge — setup & operations
 
 Remote-control the harness from your phone or Meta Ray-Ban Display glasses via WhatsApp.
-Send "Sessions" → "Eins" to resume a session, approve commits with "Ja", receive
-screenshots and code snippets as images. Works with voice dictation — no typing needed.
+Send "Sessions" → "Eins" to resume a session, approve actions with a natural "go ahead",
+receive screenshots and code snippets as images. Works with voice dictation — no typing
+needed. Replies come in the **standard bridge register** (owner decision 2026-07-10):
+short plain English like a friend on a phone call — no lists, no numbered options, no
+emojis — so using it around other people reads as a normal call. Keyword answers ("the
+beach one") select options; bare numbers still work but are never required.
 
 **Prerequisites:** Claude Code installed, a second WhatsApp number (for the bot), Node.js + bun.
 
-## Quick setup (30 minutes)
+## Setup effort — honest assessment
 
-Following the same pattern as the harness setup in AGENTS.md — one-time configuration,
-then it runs unattended.
+Be honest with yourself before starting: **this is a tinkerer-grade setup, not a
+product.** What it took to build ran across two days and two abandoned approaches; the
+pitfalls are all documented below, but even following this runbook cleanly you should
+budget:
+
+- **Comfortable with git/terminal/reading logs:** 1–2 hours of active work — clone,
+  `bun install`, apply one patch file, create two small config files, pair, then one
+  log-reading round-trip to capture your LID (step 3 cannot be done blind).
+- **Plus dead waiting time:** getting a second phone number can take days (satellite
+  activation letter: 2–4 Werktage). The number is a hard requirement, not optional.
+- **Not comfortable with a terminal:** don't attempt this today. There is no installer;
+  you'd be running a patched fork from source, editing `.cmd` files, and diagnosing
+  identity issues from daemon logs.
+
+What would make this end-user-ready (none of it exists yet): a packaged installer, an
+upstreamed fork (PR candidate — the patch is `docs/whatsapp-bridge.fork.patch`),
+automatic LID capture instead of the read-the-log dance, and a pairing wizard. Until
+then, assume every fresh machine setup is a half-day project including the number wait.
+
+## Quick setup
+
+One-time configuration, then it runs unattended.
+
+**Wizard (recommended): let Claude drive it.** Once you have the second number
+registered on WhatsApp, open Claude Code in this repo and say "set up the WhatsApp
+bridge" (the `bridge-setup` skill). It asks everything up front — which feature
+sections you want (core / images+reliability / relay / autostart), your number —
+then installs only what you chose, watches every step, and **self-heals known
+failures** (missing bun, patch drift, pairing stalls, the LID whitelist dance)
+before ever coming back to you. Your only actions: answer the questions, scan one
+QR, send two test messages.
+
+Under the hood it drives `tools/setup_bridge.py`, which is sectioned and idempotent
+(`check` / `install` / `config` / `shim` / `pair` / `autostart`) — every section can
+be re-run safely and reports a machine-readable `STATE:` line. No Claude session?
+`python tools/setup_bridge.py all` runs the same flow standalone, without the
+self-healing. The manual steps below remain the reference for what happens.
 
 ### 1. Get a second WhatsApp number (bot account)
 
@@ -28,9 +67,13 @@ cd whatsapp-claude-agent
 bun install
 ```
 
-Apply the image-sending patch (enables `[[img:path|caption]]` markers):
-- Copy patch code from **Appendix: Daemon patches** below into `src/whatsapp/client.ts` and
-  `src/whatsapp/messages.ts`, or cherry-pick commits if/when the upstream PR lands.
+Apply the full fork patch (image sending, reliability fixes, relay mode, voice-friendly
+permissions, reply style — see **Appendix: Daemon patches** for the inventory):
+
+```bash
+git apply "<harness repo>/docs/whatsapp-bridge.fork.patch"
+bunx tsc --noEmit   # must exit 0
+```
 
 ### 3. Configure your whitelist
 
@@ -90,76 +133,38 @@ Your WhatsApp (owner) ──► bot WhatsApp account (second number)
   `start-bridge.cmd` runs the fork via bun from source; it uses the SAME session dir as
   the stock exe, so the pairing carries over. Candidate for an upstream PR. If the fork
   is ever replaced by the stock exe again, images silently degrade to visible marker text.
+- **Relay mode (fork, `src/claude/relay-backend.ts`):** with `WA_RELAY_DIR` set (done in
+  `start-bridge.cmd`), incoming messages are relayed to a live INTERACTIVE Claude Code
+  session instead of a headless one — headless sessions can never use the
+  Claude-in-Chrome extension (native messaging is interactive-only). Protocol: daemon
+  appends `{id,ts,text}` to `<relay>/inbox.jsonl`; the desktop session runs a persistent
+  Monitor (see `.claude/skills/whatsapp-relay/SKILL.md`) that heartbeats
+  `<relay>/listener.alive` and answers by atomically writing `<relay>/outbox/<id>.txt`.
+  No fresh heartbeat (60s) or no reply in 10 min → automatic fallback to the headless
+  backend, replies prefixed `[headless]`. The bridge never goes dark; the relay session
+  just makes it stronger while one is running.
 
 ---
 
 ## Appendix: Daemon patches
 
-### Patch 1: Image sending (`src/whatsapp/client.ts`)
+**Single source of truth: [`whatsapp-bridge.fork.patch`](whatsapp-bridge.fork.patch)**
+(regenerate from the fork with `git add -N src/claude/relay-backend.ts && git diff`).
+Apply to a fresh clone with `git apply`, then `bunx tsc --noEmit` must exit 0.
+Inventory of what the patch contains and why:
 
-Add to imports:
-```typescript
-import { existsSync, readFileSync } from 'fs'
-```
+| File | What | Why |
+|---|---|---|
+| `src/whatsapp/client.ts` | `[[img:path\|caption]]` markers → real photo messages | stock daemon is text-only |
+| `src/whatsapp/client.ts` | `upsert.type !== 'notify'` filter, bounded inbound-ID dedup set, read receipts after whitelist gate | **re-delivery loop fix** — without all three, reconnect flaps replay old messages and each replay is a full paid Claude run |
+| `src/whatsapp/messages.ts` | captionless images flow through (`caption ?? ''`) | glasses-camera photos usually have no caption |
+| `src/claude/relay-backend.ts` (new) + `src/index.ts` | relay mode (`WA_RELAY_DIR`): inbox.jsonl / outbox / heartbeat, headless fallback | reach a live interactive session (Chrome extension etc.) |
+| `src/claude/permissions.ts` | punctuation-tolerant matcher + natural yes/no phrases ("go ahead", "let's not", …) | voice dictation inserts punctuation; robotic "Stopp" is conspicuous in public |
+| `src/claude/sdk-backend.ts` | `STYLE_HINT` in every system prompt: call-register English, no lists/options/emojis, keyword-echo selection | standard bridge style (owner decision 2026-07-10) |
+| `src/conversation/manager.ts` | "sessions"/"sitzungen" + bare number/number-word session picking | dictation can't type slash commands |
 
-Replace `async sendMessage(to: string, text: string)` body:
-```typescript
-if (!this.socket || !this.isReady) {
-    throw new Error('WhatsApp client not ready')
-}
-
-// Image markers: `[[img:/abs/path.png|optional caption]]` anywhere in the response
-// is stripped from the text and sent as an actual image message.
-const images: { path: string; caption: string }[] = []
-text = text.replace(
-    /\[\[img:([^\]|]+?)(?:\|([^\]]*))?\]\]/g,
-    (_all, p, c) => {
-        images.push({ path: String(p).trim(), caption: (c ?? '').trim() })
-        return ''
-    }
-).replace(/\n{3,}/g, '\n\n').trim()
-
-for (const img of images) {
-    if (!existsSync(img.path)) {
-        this.logger.warn(`Image marker points to missing file: ${img.path}`)
-        continue
-    }
-    try {
-        const result = await this.socket.sendMessage(to, {
-            image: readFileSync(img.path),
-            caption: img.caption || undefined
-        })
-        if (result?.key?.id) {
-            this.sentMessageIds.add(result.key.id)
-            setTimeout(() => this.sentMessageIds.delete(result.key.id!), 60000)
-        }
-        this.logger.info(`Sent image ${img.path} to ${to}`)
-    } catch (err) {
-        this.logger.error(`Failed to send image ${img.path}: ${err}`)
-    }
-}
-if (!text) return
-
-// Original prefixing + chunking code follows...
-const prefixedText = formatMessageWithAgentName(this.config.agentIdentity, text)
-// ... rest unchanged
-```
-
-### Patch 2: Captionless images (`src/whatsapp/messages.ts`)
-
-In `extractMessageText()`:
-```typescript
-// Image — WITH or WITHOUT caption (captionless images must flow through)
-if (message.imageMessage) {
-    return message.imageMessage.caption ?? ''
-}
-```
-
-In `parseMessage()`:
-```typescript
-const text = extractMessageText(msg)
-if (text === null) return null // '' is valid: a captionless image
-```
+Ambiguity rule for the yes/no phrase lists: only phrases that are unambiguous in speech.
+"Passt schon" is deliberately excluded — in German it usually means "forget it".
 
 ---
 
@@ -194,6 +199,14 @@ if (text === null) return null // '' is valid: a captionless image
    daemon never picks up changes.
 7. **Only one instance.** Two connections on one auth state kick each other off WhatsApp.
    The watchdog window is the single owner of the channel.
+8. **Two answers to one message / bot replays old messages every ~90s.** Reconnect flaps
+   make Baileys re-deliver history; each replay runs a full paid Claude session (one
+   replay re-ran a whole Playwright script). Fixed in the fork (notify-filter + inbound
+   dedup + read receipts — see appendix); if it returns, check those three patches
+   survived a fork update. Side effect of the fix: senders see blue ticks.
+9. **Replies prefixed `[headless]`.** Not an error — no interactive relay listener was
+   alive, the daemon fell back to its built-in backend. Start one via the
+   `whatsapp-relay` skill in a desktop session to get full capabilities back.
 
 ## Operations
 
