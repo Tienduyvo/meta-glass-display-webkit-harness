@@ -245,7 +245,7 @@ def sec_all(_args) -> None:
     """Standalone interactive flow for humans without a Claude session."""
     print(__doc__)
     print("Prerequisite reality check: you need a SECOND WhatsApp number for the bot.")
-    owner = input("Your phone number (international, e.g. +4917...): ").strip()
+    owner = input("Your phone number (international, e.g. +49...): ").strip()
     autostart = input("Autostart at login? [y/N]: ").strip().lower() == "y"
     for section, argv in [
         ("check", []),
