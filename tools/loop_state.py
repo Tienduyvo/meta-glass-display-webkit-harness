@@ -8,7 +8,9 @@ States per app (computed from artifacts on disk, like `git status` computes your
     FIX     verdict.md exists but is not a PASS — fix and re-evaluate
     SYNC    apps/ and worker/public/ differ — run `python tools/sync_public.py`
     DEPLOY  worker/public differs from the LIVE worker (compared over HTTP) — run `python tools/deploy.py`
-    COMMIT  loop artifacts uncommitted — a user gate: propose the commit, don't just stop
+    WIP     uncommitted files with RECENT edits (< GLASS_WIP_MINUTES, default 30) — someone is
+            mid-work (possibly another session/channel): do NOT propose a commit, serve the request
+    COMMIT  uncommitted files gone quiet — a user gate: propose the commit, don't just stop
     DONE    nothing actionable
 
 Usage:
@@ -85,6 +87,30 @@ def git_dirty_paths():
         return [l[3:].strip().strip('"') for l in r.stdout.splitlines() if l.strip()]
     except Exception:
         return []
+
+
+def minutes_since_last_edit(paths):
+    """Minutes since the NEWEST modification among the dirty paths, or None if unknowable.
+    This is what separates WIP from COMMIT: fresh edits mean a person/agent is mid-work
+    (maybe in another session or over the WhatsApp bridge) — a dirty tree alone does not
+    mean 'round finished, propose a commit'."""
+    newest = 0
+    for p in paths:
+        try:
+            newest = max(newest, os.path.getmtime(os.path.join(ROOT, p)))
+        except OSError:
+            pass  # deleted/renamed entries have no mtime — the rest still carry the signal
+    if not newest:
+        return None
+    import time
+    return (time.time() - newest) / 60.0
+
+
+def wip_threshold_minutes():
+    try:
+        return max(0, float(os.environ.get("GLASS_WIP_MINUTES", "30")))
+    except ValueError:
+        return 30.0
 
 
 def dirty_slugs(paths):
@@ -194,8 +220,16 @@ def print_table():
     if t:
         print("  [%s] %s" % t[0])
     elif d:
-        print("  [COMMIT] %d file(s) uncommitted — run `python tools/commit_prep.py`, present the plan,"
-              " commit + push on approval (user gate)" % len(d))
+        age = minutes_since_last_edit(d)
+        if age is not None and age < wip_threshold_minutes():
+            print("  [WIP] %d file(s) uncommitted, last edit %dmin ago — active work in progress"
+                  " (possibly another session/channel): do NOT propose a commit, just serve the"
+                  " user's request" % (len(d), int(age)))
+        else:
+            print("  [COMMIT] %d file(s) uncommitted and quiet%s — run `python tools/commit_prep.py`,"
+                  " present the plan, commit on approval (user gate; pushing/publishing is a"
+                  " separate explicit ask — never bundle it)"
+                  % (len(d), (" for %dmin" % int(age)) if age is not None else ""))
     else:
         print("  [DONE] nothing actionable — invite real-device testing / share")
     if backlog:
