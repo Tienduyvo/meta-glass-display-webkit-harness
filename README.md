@@ -77,6 +77,11 @@ tools/status.py` to see where you are, walks you through deploying the backend, 
 changes apps from your description**, and publishes — all in the same conversation. Want to add a
 field or a new list later? Just say so, in the same place.
 
+Say **"set it up"** and the agent runs a **self‑healing setup wizard** (the `setup` skill): one
+round of questions up front, then it installs only the pieces you pick — backend, first app,
+glasses hookup — and fixes the common failures itself instead of handing you an error. Install
+only what you need; answer once, then walk away.
+
 > Not using an agent? Run `python tools/status.py` anytime — it prints your status and the exact
 > next command. The manual steps are below.
 
@@ -110,6 +115,19 @@ That's it. Add more apps anytime with `new_app.bat` + `redeploy.bat`.
 
 ---
 
+## Remote control from your glasses (optional)
+
+Because you can't type on the glasses, the kit includes an optional **WhatsApp bridge** so you can
+drive the whole thing **by voice** — dictate a request from your Meta glasses, a Claude Code
+session on your PC does the work (build an app, browse a page, send back a screenshot), and the
+answer comes to your ear. Replies read like a normal text so it's usable around other people.
+
+Honest heads‑up: this is the **tinkerer‑grade** part of the kit. It needs a second
+WhatsApp‑registered number for the bot and an unofficial WhatsApp route, so budget real setup time.
+The agent‑driven `bridge-setup` wizard handles the mechanical steps and self‑heals the known
+snags. Full runbook, architecture, and an honest setup‑effort assessment:
+[`docs/whatsapp-bridge.md`](docs/whatsapp-bridge.md).
+
 ## Who does what
 
 | Role | Does | Touches GitHub / deploy? |
@@ -141,7 +159,9 @@ app/             local-dev launcher (one HTML file; you type the Worker URL)
 apps/            your apps: <name>/app.config.json + registry.json (only registered ones are served; places/watch are inactive patterns)
 tools/           status.py · new_app.py · sync_public.py · push.py · qr.py · export_app.py
                  check.py · flowtest.py · evaluate.py  (the define→test→verify build loop)
+                 setup_bridge.py  (sectioned engine behind the setup wizards)
 runners/         deploy_worker.bat · new_app.bat · redeploy.bat · export_app.bat · setup_repo.bat
+docs/            ARCHITECTURE.md · whatsapp-bridge.md (optional voice remote‑control bridge)
 ```
 
 ## Rules of the kit
