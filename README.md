@@ -9,27 +9,37 @@
 · [Use this template](https://github.com/Tienduyvo/meta-glass-display-webkit-harness/generate)
 · [Request an app](https://github.com/Tienduyvo/meta-glass-display-webkit-harness/issues/new?template=request-an-app.yml)
 
-A **starter kit for building your own tiny CRUD list apps** that run on Meta Ray‑Ban Display
-glasses and phones — shopping lists, to‑do lists, packing lists, watchlists, whatever you like.
+**Two ways to put Claude on your face.** This repo is a kit for Meta Ray‑Ban Display glasses with
+two halves — a structured one and an open one:
 
-**You build the apps.** Describe an app (or answer a few prompts) → get a working glasses + mobile
-app. No framework, no build step: apps are just JSON config, served as one static HTML file and
-backed by a tiny serverless CRUD API — both from a single Cloudflare Worker. Ship as many apps as
-you want from one launcher.
+### 1 · Build tiny apps — the structured surface
+Your own small **CRUD list apps** — shopping, to‑do, packing, watchlists — that run on the glasses
+**and** phone from one JSON config. No framework, no build step: apps are static HTML + a tiny
+serverless CRUD API, both from a single Cloudflare Worker. Because you **can't type on the glasses**,
+each app runs on **phone/desktop *and* glasses in parallel** — add and edit on the phone, **view +
+check off hands‑free on the glasses** — rendering from the exact same config (600×600 additive
+display, D‑pad nav) per Meta's guidelines. Ship as many as you want from one launcher.
 
-**One config, two surfaces.** Because you **can't type on the glasses**, every app is built to run
-on **phone/desktop *and* glasses in parallel**: you add and edit items on the phone or desktop
-(full keyboard), and **view + check them off hands‑free on the glasses**. You develop and test the
-whole thing in a normal browser; the glasses layout renders from the exact same config (600×600
-additive display, arrow/D‑pad nav), following Meta's display guidelines.
+### 2 · 🎙️ Talk to Claude natively — the open surface (the real shift)
+The paradigm change isn't the apps — it's using **Claude itself as the backend**. The kit ships a
+**direct WhatsApp bridge to Claude Code**, putting a **complete, native Claude session in your ear**,
+driven **by voice**. You dictate from your glasses; the live Claude on your PC works with its **full
+toolset** and reads the answer back. A fixed app can only do what its config allows — Claude‑as‑backend
+can do **anything the session can**:
 
-> ### 🎙️ Talk to Claude from your glasses — full Claude, by voice
-> The kit also ships an optional **direct WhatsApp bridge to Claude Code**: a **complete, native
-> Claude session in your ear**. Dictate from your Meta glasses, and the live Claude on your PC uses
-> its **full toolset** — **controls your PC via MCP**, **drives your browser via the Chrome
-> extension**, sends back real screenshots — then reads the answer aloud on the glasses. Not a narrow
-> bot: the real thing, hands‑free. → [**How it works & setup**](docs/whatsapp-bridge.md) · details
-> [below](#whatsapp--claude-bridge--full-claude-from-your-glasses-optional).
+- **control your PC natively via MCP** — open apps, click, type, read the screen, run commands;
+- **drive your browser via the Chrome extension** — open pages, fill forms, read content, send back
+  real screenshots as WhatsApp photos;
+- **build and change the apps above by voice**, use your repos, connected tools (e.g. Gmail), the lot.
+
+Not a narrow bot — the real Claude, hands‑free, around other people (replies read like a normal text).
+This is where the glasses stop being a screen and become an interface to everything your computer can
+do. → [**How it works & setup**](docs/whatsapp-bridge.md) · details
+[below](#whatsapp--claude-bridge--full-claude-from-your-glasses-optional).
+
+> Together: the apps are the **stable, glanceable surface** (fixed layout you can trust), and the
+> Claude bridge is the **open surface** (anything, on demand). Fixed where you want reliability, open
+> where you want power — same glasses.
 
 > **This is the kit, not a finished product.** You (the builder) set it up once. The people who
 > *use* your finished apps never touch GitHub — they just open a link (or you add it to your
