@@ -23,6 +23,14 @@ on **phone/desktop *and* glasses in parallel**: you add and edit items on the ph
 whole thing in a normal browser; the glasses layout renders from the exact same config (600×600
 additive display, arrow/D‑pad nav), following Meta's display guidelines.
 
+> ### 🎙️ Talk to Claude from your glasses — full Claude, by voice
+> The kit also ships an optional **direct WhatsApp bridge to Claude Code**: a **complete, native
+> Claude session in your ear**. Dictate from your Meta glasses, and the live Claude on your PC uses
+> its **full toolset** — **controls your PC via MCP**, **drives your browser via the Chrome
+> extension**, sends back real screenshots — then reads the answer aloud on the glasses. Not a narrow
+> bot: the real thing, hands‑free. → [**How it works & setup**](docs/whatsapp-bridge.md) · details
+> [below](#whatsapp--claude-bridge--full-claude-from-your-glasses-optional).
+
 > **This is the kit, not a finished product.** You (the builder) set it up once. The people who
 > *use* your finished apps never touch GitHub — they just open a link (or you add it to your
 > glasses). See *Who does what* below.
@@ -115,17 +123,27 @@ That's it. Add more apps anytime with `new_app.bat` + `redeploy.bat`.
 
 ---
 
-## Remote control from your glasses (optional)
+## WhatsApp ↔ Claude bridge — full Claude from your glasses (optional)
 
-Because you can't type on the glasses, the kit includes an optional **WhatsApp bridge** so you can
-drive the whole thing **by voice** — dictate a request from your Meta glasses, a Claude Code
-session on your PC does the work (build an app, browse a page, send back a screenshot), and the
-answer comes to your ear. Replies read like a normal text so it's usable around other people.
+More than a remote for this kit: an optional **direct WhatsApp bridge to Claude Code** that puts a
+**complete, native Claude session in your ear**, controlled **by voice**. You dictate from your Meta
+glasses (or text from your phone), and the live Claude on your PC works with its **full toolset** and
+replies to WhatsApp — the answer is read aloud on the glasses.
 
-Honest heads‑up: this is the **tinkerer‑grade** part of the kit. It needs a second
+Because it's the real Claude Code session, not a narrow bot, it can:
+- **control your PC natively via MCP** — open apps, click, type, read the screen, run commands;
+- **drive your browser via the Chrome extension** — open pages, fill forms, read content, and send
+  back real screenshots as WhatsApp photos;
+- **use everything else the session has** — your repos, the build loop, connected tools (e.g. Gmail).
+
+Replies come in a plain, call‑style register so using it around other people just looks like texting.
+Natural phrases ("go ahead", "let's not") approve or decline actions — no robotic commands. When no
+live desktop session is listening, a headless Claude answers instead, so the bridge never goes dark.
+
+Honest heads‑up: this is the **tinkerer‑grade** part of the kit — it needs a second
 WhatsApp‑registered number for the bot and an unofficial WhatsApp route, so budget real setup time.
-The agent‑driven `bridge-setup` wizard handles the mechanical steps and self‑heals the known
-snags. Full runbook, architecture, and an honest setup‑effort assessment:
+The agent‑driven `bridge-setup` wizard handles the mechanical steps and self‑heals the known snags.
+Full runbook, architecture, and an honest setup‑effort assessment:
 [`docs/whatsapp-bridge.md`](docs/whatsapp-bridge.md).
 
 ## Who does what
