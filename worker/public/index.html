@@ -55,7 +55,8 @@
 <body>
 <div id="app">
   <div class="head"><span style="display:flex;gap:8px;align-items:center"><button id="backbtn" class="iconbtn" style="display:none">‹ Apps</button><b id="title">Meta Glass</b></span><span id="status" class="muted"></span></div>
-  <div id="screen"></div>
+  <!-- Never a blank surface: visible before the first registry fetch resolves (slow networks). -->
+  <div id="screen"><div style="text-align:center;margin-top:110px;font-size:24px;line-height:1.55"><div style="font-size:54px">✨</div><b style="color:#fff">Loading…</b></div></div>
   <div class="foot" id="foot"></div>
 </div>
 <script>
@@ -93,12 +94,21 @@ function screenSetup(){
 
 function stopRefresh(){ if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null;} }
 function startRefresh(){ stopRefresh(); var s=CFG&&+CFG.refresh; if(s>=3)refreshTimer=setInterval(function(){ if(MODE==="app")refresh(); }, s*1000); }
+var regTimer=null;
+async function fetchReg(tries){
+  for(var i=0;i<(tries||1);i++){
+    try{ var r=await (await fetch("/apps/registry.json",{cache:"no-store"})).json();
+      if(r&&r.apps){ REG=r; if(r.apps.length) return true; } }catch(e){}
+    if(i+1<(tries||1)) await new Promise(function(ok){setTimeout(ok,1000);});
+  }
+  return !!REG.apps.length;
+}
 async function openLauncher(){
   stopRefresh(); stopTick(); stopRotate(); stopInspire();
   MODE="launcher"; view="list"; focus=0; CFG=null;
   document.getElementById("title").textContent="Apps";
   if(!TOKEN){ return screenSetup(); }
-  if(!REG.apps.length){ try{ REG=await (await fetch("/apps/registry.json",{cache:"no-store"})).json(); }catch(e){ REG={apps:[]}; } }
+  if(!REG.apps.length) await fetchReg(1);
   renderLauncher();
 }
 var ACCENTS=["#4aa3ff","#41d18b","#ffb454","#c78bff","#ff6b81","#38d0d6","#f4d35e"];
@@ -106,6 +116,13 @@ function accentFor(a,i){return (a&&a.accent)||ACCENTS[i%ACCENTS.length];}
 function renderLauncher(){
   updateBack(); setStatus("");
   document.getElementById("foot").innerHTML=(REG.apps.length||0)+' apps · <a href="#" data-settings style="color:#4aa3ff;text-decoration:none">⚙ settings</a>';
+  if(!REG.apps.length){
+    /* Registry unreachable or empty — say so brightly and keep retrying (no reload on glasses). */
+    document.getElementById("screen").innerHTML='<div style="text-align:center;margin-top:'+(GLASS?"110px":"40px")+';font-size:'+(GLASS?"26px":"16px")+';line-height:1.55"><div style="font-size:'+(GLASS?"54px":"40px")+'">📡</div><b>No apps loaded yet.</b><br><span style="color:#9ecbff">Checking the connection — retrying…</span></div>';
+    clearTimeout(regTimer);
+    regTimer=setTimeout(function(){ if(MODE==="launcher"&&!REG.apps.length) openLauncher(); },8000);
+    return;
+  }
   document.getElementById("screen").innerHTML='<div class="grid">'+REG.apps.map(function(a,i){
     return '<div class="tile'+(i===focus?" focus":"")+'" data-i="'+i+'" style="--acc:'+accentFor(a,i)+'"><div class="ic">'+esc(a.icon||"▦")+'</div><div class="tname">'+esc(a.name)+'</div></div>';
   }).join("")+'</div>';
@@ -356,7 +373,7 @@ window.addEventListener("popstate",function(){ if(MODE==="app"){ contextBack(); 
 (async function(){
   readCreds();
   if(!TOKEN){ screenSetup(); return; }
-  try{ REG=await (await fetch("/apps/registry.json",{cache:"no-store"})).json(); }catch(e){ REG={apps:[]}; }
+  await fetchReg(2);
   openLauncher();
 })();
 </script>
