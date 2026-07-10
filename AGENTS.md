@@ -12,18 +12,22 @@ architecture: `docs/ARCHITECTURE.md`.)
 2. Greet + one sentence on what this is ("a kit to build tiny list apps that run on Meta glasses
    **and** phone/desktop from one config — you type on phone/desktop, view + check off hands‑free
    on the glasses").
-3. Ask what they want: **set it up**, **build/change an app**, or **publish**. Then go to the
-   matching section below. Don't dump all steps at once.
+3. Ask what they want: **set it up**, **build/change an app**, or **publish**. For any setup work —
+   fresh clone, missing backend, glasses hookup, WhatsApp bridge — use the **`setup` skill**
+   (`.claude/skills/setup/SKILL.md`): it front-loads ONE question round across all chosen
+   sections, then drives them to completion and self-heals known failures. Don't re-invent that
+   flow conversationally, and don't dump all steps at once.
 
 ## A) Set up the backend (once)
-Goal: a live Cloudflare Worker + D1 and an app password.
+Goal: a live Cloudflare Worker + D1 and an app password. This is the *Backend* section of the
+`setup` skill — the wizard is the normal entry point; the mechanics:
 - Prereqs: a (free) Cloudflare account and Node.js. If `npx` is missing, tell them to install
   Node first.
-- Guide them through **`runners/deploy_worker.bat`** (Windows) or the commands in `worker/README.md`
-  (`wrangler login` → `wrangler d1 create glass_crud` → paste the printed `database_id` into
-  `worker/wrangler.toml` → `wrangler d1 execute … --file=schema.sql` → `wrangler secret put
-  API_SECRET` → `wrangler deploy`).
-  When it asks for `API_SECRET`, that's the **app password** — the user picks one they'll remember.
+- Engine: **`python tools/deploy.py`** — unattended; it preflights, front-loads the only
+  interactive steps (browser `wrangler login`, `API_SECRET` prompt — that's the **app password**,
+  the user picks one they'll remember), reuses an existing D1 (never re-creates), writes the
+  `database_id` itself, and skips anything already done. `runners/deploy_worker.bat` /
+  `worker/README.md` remain the manual fallback and reference.
 - Verify: open `https://…workers.dev/health` → `{"ok":true}`. Save the Worker URL + password; the
   password is entered once in the launcher (or baked into the glasses URL hash).
 
