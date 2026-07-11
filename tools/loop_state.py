@@ -11,6 +11,7 @@ States per app (computed from artifacts on disk, like `git status` computes your
     WIP     uncommitted files with RECENT edits (< GLASS_WIP_MINUTES, default 30) — someone is
             mid-work (possibly another session/channel): do NOT propose a commit, serve the request
     COMMIT  uncommitted files gone quiet — a user gate: propose the commit, don't just stop
+    SHARE   PASS + committed but the star/share/contribute ask hasn't happened — do it (user gate)
     DONE    nothing actionable
 
 Usage:
@@ -68,6 +69,15 @@ def app_state(slug):
     head = open(ver, encoding="utf-8", errors="replace").read(600)
     if "PASS" not in head:
         return ("FIX", "apps/%s/verdict.md is not a PASS — fix the red gate and re-run evaluate" % slug)
+    # SHARE is a FIXED end-of-loop step (owner rule 2026-07-11): a PASS app is not truly
+    # done until the user has been asked to star / share / contribute it to the community
+    # catalog (AGENTS.md §D). Recorded by a "share-asked" token in verdict.md so it can't
+    # be silently skipped — the loop stays open until the ask actually happened.
+    full = open(ver, encoding="utf-8", errors="replace").read().lower()
+    if "share-asked" not in full:
+        return ("SHARE", "run `python tools/report.py %s`, then ASK the user: ⭐ star, "
+                "share the launcher link, or contribute to apps/community/ — record it with "
+                "`python tools/share.py %s --asked`" % (slug, slug))
     return ("OK", None)
 
 

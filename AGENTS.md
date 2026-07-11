@@ -271,9 +271,15 @@ For each thing that breaks or confuses them, fix it, then sort the fix into one 
 This closes the loop: **build → verify → deploy → user tests → sort findings → harden the kit (gated)
 → share.** The star ask below grows reach; the testing feedback grows quality — capture both here.
 
-**Share & grow.** This part is **your job in the conversation**, not the app's — the launcher has no
-star/share UI. Bring it up **last**, once their app is live and published. Don't push it earlier —
-someone still setting up doesn't care about sharing yet.
+**Share & grow — now a FIXED loop step, not an optional afterthought (owner rule 2026-07-11).**
+An app that passes its gates is **not DONE** until you've asked the user to ⭐ star, share the
+launcher link, or contribute it to the community catalog. `loop_state.py` holds a passed app in
+the **SHARE** state until the ask is recorded (a `Share-asked` marker in `verdict.md`), so it can't
+be silently skipped — it was, for every app built 2026-07-11. Do the ask with
+**`python tools/report.py <slug>`** + **`python tools/share.py <slug>`** (the hand-off), then
+**`python tools/share.py <slug> --asked`** to record it; `--contribute` scaffolds
+`apps/community/<slug>/` for the catalog PR. This part is **your job in the conversation**, not the
+app's — the launcher has no star/share UI. Bring it up once the app is live; don't push it earlier.
 
 **Close the loop with one report — don't hand-assemble it.** Run **`python tools/report.py <slug>`**
 and read it back: it consolidates (1) features confirmed (from the config), (2) the spec

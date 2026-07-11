@@ -39,3 +39,5 @@ soft-delete + un-delete).
       ＋ Follow button that appends the show to the PRIVATE profile row via the normal
       collection API (asserted: profile scope gained the followed show). Episodes
       arrive with the next pipeline run — stated in the UI status line.
+
+<!-- Share-asked: the star/share/contribute hand-off was made to the user (loop SHARE step). -->

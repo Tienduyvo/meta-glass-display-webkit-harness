@@ -48,3 +48,5 @@ un-deletes).
       publisher URLs (Google redirects hide og:image; GDELT 429s) — ~14/31 items carry
       an https image; hero/card/thumb rendering screenshot-verified, `onerror` hides
       broken images, glasses detail shows the photo via the `image` field type.
+
+<!-- Share-asked: the star/share/contribute hand-off was made to the user (loop SHARE step). -->

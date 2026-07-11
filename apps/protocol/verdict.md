@@ -31,3 +31,5 @@ procedure and consults the primary SDS.
   over-warning). Reagent must be a name PubChem resolves (common names/CAS work best).
 
 **Overall: PASS** (both halves green).
+
+<!-- Share-asked: the star/share/contribute hand-off was made to the user (loop SHARE step). -->

@@ -30,3 +30,5 @@ replace, soft-delete + un-delete).
   podcast-serialized fiction only; self-hosted files deferred until asked.
 
 **Overall: PASS** (both halves green).
+
+<!-- Share-asked: the star/share/contribute hand-off was made to the user (loop SHARE step). -->

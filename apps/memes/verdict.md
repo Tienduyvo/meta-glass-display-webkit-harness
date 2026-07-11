@@ -23,3 +23,5 @@ round-trip, check/fav persist, delete removes, bulk replace, soft-delete + un-de
   Giphy possible later with free keys; 9GAG/iFunny have no viable door (tested).
 
 **Overall: PASS** (both halves green).
+
+<!-- Share-asked: the star/share/contribute hand-off was made to the user (loop SHARE step). -->
