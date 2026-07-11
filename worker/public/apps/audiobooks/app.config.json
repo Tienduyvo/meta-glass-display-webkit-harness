@@ -1,0 +1,25 @@
+{
+  "title": "Audiobooks",
+  "collection": "audiobooks",
+  "readOnly": true,
+  "control": "control.html",
+  "fields": [
+    { "key": "title",    "label": "Book",     "type": "text" },
+    { "key": "author",   "label": "Author",   "type": "text" },
+    { "key": "cover",    "label": "Cover",    "type": "image" },
+    { "key": "about",    "label": "About",    "type": "text" },
+    { "key": "chapter",  "label": "Chapter",  "type": "text" },
+    { "key": "audio",    "label": "Audio",    "type": "audio" },
+    { "key": "progress", "label": "Progress", "type": "text" },
+    { "key": "total",    "label": "Runtime",  "type": "text" },
+    { "key": "chapters", "label": "Chapters", "type": "text" },
+    { "key": "section",  "label": "Section",  "type": "text" },
+    { "key": "rank",     "label": "Rank",     "type": "number" },
+    { "key": "pos",      "label": "Position", "type": "number" }
+  ],
+  "row": { "title": "title", "badge": "progress" },
+  "detail": ["title", "cover", "author", "chapter", "audio", "total", "about"],
+  "actions": { "add": false, "check": true, "fav": true, "delete": true },
+  "sort": { "key": "rank", "dir": "asc" },
+  "refresh": 60
+}

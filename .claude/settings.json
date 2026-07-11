@@ -1,5 +1,8 @@
 {
   "_comment": "Shipped with the harness. PostToolUse auto-runs the verify gate (tools/check.py + tools/flowtest.py via tools/verify_hook.py) whenever an app config, the registry, or a launcher/worker file changes — so a broken app is caught the instant it's edited and fixed in the same turn (keep `wrangler dev` running for the flowtest half). Stop enforces the loop STATE MACHINE (tools/loop_state.py): if the agent stops while an agent-actionable transition remains on an app it touched (define -> verify -> sync -> deploy), the stop is blocked once and the next action fed back — the user should never have to ask 'what's next'.",
+  "env": {
+    "PYTHONIOENCODING": "utf-8"
+  },
   "hooks": {
     "PostToolUse": [
       {

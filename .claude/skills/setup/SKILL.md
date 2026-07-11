@@ -46,7 +46,8 @@ Sections are idempotent — re-running is always safe.
 |---|---|---|
 | Prereqs | node/npx, python present (`tools/setup_bridge.py check` covers git/bun/node/claude for the bridge) | commands answer |
 | Backend | `python tools/deploy.py` — unattended; reuses existing D1, writes database_id, skips done steps. Only interactive bits: `wrangler login` (browser) + API_SECRET, both front-loaded by the script | `GET /health` → `{"ok":true}` |
-| First app | the AGENTS.md loop: acceptance.md → build → `evaluate.py` → deploy → report | `loop_state.py` reaches COMMIT/DONE |
+| **Profile** (owner 2026-07-11: AI interview, "not dumb config") | YOU interview the user in plain conversation — who they are, what they follow (topics, tickers, teams), how they work (talk lengths, routines). No forms. Translate the answers into PRIVATE profile rows yourself: `python tools/profile.py set me '<json>'` + one scope per relevant app (`news`, `timer`, …). The profile lives in the D1 `profile` collection behind the app password, NEVER in the repo; committed files (e.g. `apps/news/interests.json`) stay generic defaults. Runs right after Backend (needs the API up). | `python tools/profile.py get` shows the scopes; the user hears back a one-line summary of what was stored |
+| First app | the AGENTS.md loop: acceptance.md → build → `evaluate.py` → deploy → report — **read the profile first** (`tools/profile.py get`) so the app is personal from day one | `loop_state.py` reaches COMMIT/DONE |
 | Glasses | `python tools/qr.py` for the launcher URL; user registers it in Meta AI app (Developer Mode → App Connections → Web Apps) | user confirms launcher opens on-device |
 | Bridge | invoke the `bridge-setup` skill (its own engine + healing table) | its pair section reports `verified` |
 | Publish | `runners/setup_repo.bat` (staged-file secret scan aborts on hits) | push visible on GitHub |

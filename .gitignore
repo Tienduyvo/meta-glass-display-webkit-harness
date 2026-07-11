@@ -24,3 +24,5 @@ exports/
 __pycache__/
 *.pyc
 .DS_Store
+build_queue.json
+.personal-guard

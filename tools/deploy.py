@@ -7,8 +7,10 @@ need a human — Cloudflare login and setting the app password — at the very s
 (3) runs the whole rest UNATTENDED: link D1, apply schema, sync, deploy, health-check.
 
 Nothing is asked "in between": already-done steps are detected and skipped, an existing D1
-is reused (never re-created), and its database_id is written into wrangler.toml automatically
-(no hand-paste). Safe to re-run any time — a fully set-up project runs end-to-end with zero
+is reused (never re-created), and its database_id lives in the git-ignored `push.env`
+(D1_DATABASE_ID=…) — it is injected into wrangler.toml only for the duration of the deploy
+and the committed placeholder is restored right after, so the personal id can never be
+committed. Safe to re-run any time — a fully set-up project runs end-to-end with zero
 prompts.
 
 Run via `runners/deploy_worker.bat` or `python tools/deploy.py`. Node.js/npx required.
@@ -22,6 +24,8 @@ if hasattr(sys.stdout, "reconfigure"):
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WORKER = os.path.join(ROOT, "worker")
 TOML = os.path.join(WORKER, "wrangler.toml")
+ENVFILE = os.path.join(ROOT, "push.env")
+PLACEHOLDER = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
 DB_NAME = "glass_crud"
 NPX = shutil.which("npx")
 
@@ -56,6 +60,32 @@ def current_db_id():
     m = re.search(r'(?m)^\s*database_id\s*=\s*"([^"]*)"', read_toml())
     return m.group(1) if m else ""
 
+def env_db_id():
+    """D1_DATABASE_ID from the environment or the git-ignored push.env / .env."""
+    if os.environ.get("D1_DATABASE_ID"):
+        return os.environ["D1_DATABASE_ID"]
+    for name in ("push.env", ".env"):
+        p = os.path.join(ROOT, name)
+        if not os.path.exists(p):
+            continue
+        for line in open(p, encoding="utf-8"):
+            line = line.strip()
+            if line.startswith("D1_DATABASE_ID") and "=" in line:
+                return line.split("=", 1)[1].strip().strip('"').strip("'")
+    return ""
+
+def save_env_db_id(uuid):
+    """Upsert D1_DATABASE_ID into push.env (git-ignored) — the id's single home."""
+    lines = []
+    if os.path.exists(ENVFILE):
+        lines = open(ENVFILE, encoding="utf-8").read().splitlines()
+    lines = [l for l in lines if not l.strip().startswith("D1_DATABASE_ID")]
+    lines.append("D1_DATABASE_ID=" + uuid)
+    tmp = ENVFILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+    os.replace(tmp, ENVFILE)
+
 def d1_list():
     rc, out = wr(["d1", "list", "--json"], capture=True)
     if rc != 0: return None
@@ -88,8 +118,10 @@ def preflight():
     logged_in, email = probe_login()
     dbs = d1_list()
     row = d1_info(dbs)
-    cur = current_db_id()
-    linked = bool(cur) and "REPLACE" not in cur and (dbs is None or any(d.get("uuid") == cur for d in dbs))
+    # The id's home is the git-ignored push.env; a real id in wrangler.toml is legacy
+    # (pre-env-file checkouts) and gets adopted into push.env by ensure_d1.
+    cur = env_db_id() or (current_db_id() if "REPLACE" not in current_db_id() else "")
+    linked = bool(cur) and (dbs is None or any(d.get("uuid") == cur for d in dbs))
     has_tables = bool(row and (row.get("num_tables") or 0) > 0)
     secret = probe_secret()
     configs = probe_configs()
@@ -98,7 +130,8 @@ def preflight():
     say("x" if logged_in else "!", ("Logged in" + (" as " + email if email else "")) if logged_in
         else "Not logged in  -> one-time: Cloudflare login (browser)")
     if linked:
-        say("x", "D1 '%s' linked in wrangler.toml (%s)" % (DB_NAME, cur[:8]))
+        say("x", "D1 '%s' id known (%s, from %s)" % (DB_NAME, cur[:8],
+            "push.env" if env_db_id() else "wrangler.toml — will move to push.env"))
     elif row:
         say("~", "D1 '%s' exists but not linked  -> will link automatically (no re-create)" % DB_NAME)
     else:
@@ -141,8 +174,17 @@ def ensure_secret(pf):
     say("x", "App password set"); return True
 
 def ensure_d1(pf):
-    if pf["linked"]:
-        say("x", "D1 already linked — skipping"); return True
+    """Resolve the D1 uuid and store it in push.env. Returns the uuid ('' on failure).
+    wrangler.toml keeps the committed placeholder; the id is injected only around
+    the deploy itself (main), so it can never be committed by accident."""
+    uuid = env_db_id()
+    if not uuid and "REPLACE" not in current_db_id():
+        uuid = current_db_id()          # legacy checkout: adopt the toml id…
+        save_env_db_id(uuid)
+        write_toml_db_id(PLACEHOLDER)   # …and scrub it from the tracked file
+        say("x", "Moved D1 id from wrangler.toml to push.env (%s)" % uuid[:8])
+    if uuid:
+        say("x", "D1 id known — skipping (push.env)"); return uuid
     dbs = d1_list()
     row = d1_info(dbs)
     if not row:
@@ -152,9 +194,9 @@ def ensure_d1(pf):
     else:
         say(" ", "Reusing existing D1 '%s' (no re-create)…" % DB_NAME)
     if not row:
-        say("!", "Could not create/find D1 '%s'." % DB_NAME); return False
-    write_toml_db_id(row["uuid"])
-    say("x", "Linked D1 in wrangler.toml (%s)" % row["uuid"][:8]); return True
+        say("!", "Could not create/find D1 '%s'." % DB_NAME); return ""
+    save_env_db_id(row["uuid"])
+    say("x", "Saved D1 id to push.env (%s)" % row["uuid"][:8]); return row["uuid"]
 
 def ensure_schema(pf):
     # re-probe: num_tables may be stale if we just linked/created
@@ -210,10 +252,18 @@ def main():
         print("\n✅ Nothing needs you — running fully unattended. Go get tea. ☕\n")
 
     head("Unattended: link D1 -> schema -> sync -> deploy")
-    if not ensure_d1(pf): return 1
-    ensure_schema(pf)
+    db_id = ensure_d1(pf)
+    if not db_id: return 1
     sync_public()
-    ok, url = deploy()
+    # Inject the id from push.env only while wrangler needs it (schema resolves the D1
+    # binding through wrangler.toml too, not just deploy); always restore the committed
+    # placeholder — even on failure — so the personal id never sits in the tracked file.
+    write_toml_db_id(db_id)
+    try:
+        ensure_schema(pf)
+        ok, url = deploy()
+    finally:
+        write_toml_db_id(PLACEHOLDER)
     if ok and url: health(url)
 
     print()

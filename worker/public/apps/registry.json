@@ -35,6 +35,31 @@
       "name": "Daily Ritual",
       "icon": "🌗",
       "config": "/apps/daily-ritual/app.config.json"
+    },
+    {
+      "name": "News",
+      "icon": "📰",
+      "config": "/apps/news/app.config.json"
+    },
+    {
+      "name": "Podcasts",
+      "icon": "🎙️",
+      "config": "/apps/podcasts/app.config.json"
+    },
+    {
+      "name": "Audiobooks",
+      "icon": "📚",
+      "config": "/apps/audiobooks/app.config.json"
+    },
+    {
+      "name": "Memes",
+      "icon": "😂",
+      "config": "/apps/memes/app.config.json"
+    },
+    {
+      "name": "Protocol",
+      "icon": "🧬",
+      "config": "/apps/protocol/app.config.json"
     }
   ]
 }

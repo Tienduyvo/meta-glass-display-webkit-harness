@@ -23,6 +23,9 @@ jobs:
       - name: Static checks (configs parse, launcher JS syntax, apps↔public in sync)
         run: python tools/check.py
 
+      - name: Unit tests (pipeline internals — regression tests for reported bugs)
+        run: python -m unittest discover -s tools/tests -p "test_*.py" -v
+
       - name: Start local Worker (wrangler dev, ephemeral local D1)
         working-directory: worker
         run: |

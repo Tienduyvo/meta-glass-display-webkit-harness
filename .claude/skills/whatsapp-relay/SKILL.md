@@ -28,6 +28,14 @@ Relay dir: `~/.whatsapp-claude-agent/relay/`
   `{"model":"claude-fable-5","kind":"interactive desktop session"}`. The daemon's
   startup banner reads it (with a fresh heartbeat) to announce who actually answers.
   Write it (atomically) right after starting the Monitor.
+- `outbox/events/<name>.txt` — **speak first** (daemon feature added 2026-07-11): the
+  daemon polls this dir every 2 s and sends each file's content to the owner as an
+  UNPROMPTED WhatsApp message — no inbound message or reply slot needed. Write
+  atomically (`.tmp` → rename); prefix names for ordering (`001-…`).
+  `[[img:path|caption]]` markers work here too. Use it for what request/reply can't
+  cover: a long build finished, you're blocked and need the desk, a promised follow-up.
+  Same register as replies (short, call-style, glance-safe) — one message per real
+  transition, never a progress ticker.
 
 ## Becoming the listener
 

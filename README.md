@@ -50,6 +50,27 @@ do. → [**How it works & setup**](docs/whatsapp-bridge.md) · details
 
 ---
 
+## 🏭 App factory metrics
+
+<!-- app-metrics:start -->
+| App | Time to build | Improvement | Tokens | Model | Findings |
+|---|---|---|---|---|---|
+| Buy List | pre-tracking | — | 2k out / 136 in (measured) | — | 0 open / 0 closed |
+| To-Do | pre-tracking | — | 4k out / 162 in (measured) | — | 0 open / 0 closed |
+| Wallpaper | pre-tracking | 14h32m · 2 commit(s) | 44k out / 1k in (measured) | — | 0 open / 1 closed |
+| Presentation Timer | pre-tracking | 14h32m · 2 commit(s) | 73k out / 2k in (measured) | — | 0 open / 2 closed |
+| Flashcards | pre-tracking | — | 6k out / 157 in (measured) | — | 0 open / 0 closed |
+| Stencil | pre-tracking | 7h50m · 2 commit(s) | 29k out / 165 in (measured) | — | 0 open / 1 closed |
+| Daily Ritual | pre-tracking | — | 54k out / 6k in (measured) | — | 0 open / 9 closed |
+| News | 2h23m | — | 146k out / 383 in (measured) | claude-fable-5 | 0 open / 12 closed |
+| Podcasts | 13m | — | 21k out / 35 in (measured) | claude-fable-5 | 0 open / 0 closed |
+| Audiobooks | 14m | — | 13k out / 22 in (measured) | claude-fable-5 | 0 open / 0 closed |
+| Memes | 10m | — | 7k out / 88 in (measured) | claude-fable-5 | 0 open / 0 closed |
+| Protocol | 10m | — | 11k out / 20 in (measured) | claude-fable-5 | 0 open / 0 closed |
+
+**12 apps** in the launcher · times derived from the loop's artifacts (`acceptance.md` → `verdict.md` → later commits), updated by `python tools/metrics.py --readme` at the end of every build loop.
+<!-- app-metrics:end -->
+
 ## What you can build
 
 Any small list you want on your face and in your pocket. The **glasses superpower** is hands‑free

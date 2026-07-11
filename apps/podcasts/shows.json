@@ -1,0 +1,7 @@
+{
+  "_comment": "DEFAULT TEMPLATE ONLY — no personal data (repo stays template-level). The user's real shows live in the PRIVATE profile (scope 'podcasts', via tools/profile.py — filled by AI interview). The pipeline prefers the profile and falls back to this file on fresh forks. 'shows' entries are names (resolved to feeds via iTunes Search) or direct feed URLs.",
+  "shows": ["This Week in Tech", "Science Vs"],
+  "episodes_per_show": 2,
+  "discovery_ratio": 0.25,
+  "charts": ["us"]
+}

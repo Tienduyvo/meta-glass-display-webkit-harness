@@ -15,42 +15,79 @@
  document.head.appendChild(vp);document.documentElement.className=glass?"glass":"web";})();
 </script>
 <style>
- *{box-sizing:border-box;font-family:system-ui,Arial,sans-serif}button,input{font:inherit}
- html.glass,html.glass body{margin:0;width:600px;height:600px;overflow:hidden;background:#000}
+ /* Visual language ported from GlassKit UI (glasskit.app/ui, MIT): layered translucent
+    surfaces + 1px white edges, gradient icon plates, #4c8dff focus glow, caps-tracked
+    dim labels, sub-200ms ease-out motion. Verified against Meta's real HUD look —
+    premium app-UI surfaces beat literal see-through minimalism, and bright ink on the
+    waveguide stays readable because dark pixels still render near-transparent. */
+ *{box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif}button,input{font:inherit}
+ :root{--ink:#fff;--ink2:#9aa3b5;--ink3:#7c8498;--acc:#4c8dff;--edge:rgba(255,255,255,.10);
+   --surf:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.028));
+   --ease:cubic-bezier(.23,1,.32,1)}
+ .tile,.row{background:var(--surf);border:1px solid var(--edge);
+   box-shadow:0 14px 30px -18px rgba(0,0,0,.85);
+   transition:box-shadow .16s var(--ease),border-color .16s var(--ease),transform .14s var(--ease)}
+ .plate{display:flex;align-items:center;justify-content:center;flex:0 0 auto;
+   background:linear-gradient(150deg,var(--g1,#5b9dff),var(--g2,#2f5fe0));
+   box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 8px 18px -10px rgba(0,0,0,.9)}
+ @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+ html.glass,html.glass body{margin:0;width:600px;height:600px;overflow:hidden;
+   background:radial-gradient(120% 90% at 50% -10%,#0e1220 0%,#0b0e16 45%,#090b11 100%)}
  html.glass :focus,html.glass :focus-visible{outline:none}
- html.glass #app{width:600px;height:600px;color:#fff;padding:20px 24px;position:relative}
+ html.glass #app{width:600px;height:600px;color:var(--ink);padding:20px 24px;position:relative}
  html.glass .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}
- html.glass .tile{position:relative;overflow:hidden;padding:20px 16px;border:2px solid #34373c;border-radius:18px;font-size:24px;background:#1C1E21;transition:box-shadow .12s ease,border-color .12s ease}
- html.glass .tile::before{content:"";position:absolute;top:0;left:0;right:0;height:5px;background:var(--acc,#4aa3ff)}
- html.glass .tile.focus{border-color:var(--acc,#fff);background:#26292e;box-shadow:0 0 0 3px var(--acc,#fff),0 0 26px -4px var(--acc,#fff)}
- html.glass .tile .ic{font-size:46px;line-height:1.1}
- html.glass .tile .tname{margin-top:6px;font-size:22px;font-weight:700}
- html.glass .row{position:relative;overflow:hidden;display:flex;gap:12px;align-items:center;padding:12px 14px;border:2px solid #34373c;border-radius:14px;background:#1C1E21;transition:box-shadow .12s ease,border-color .12s ease}
- html.glass .row.focus{border-color:#fff;background:#26292e;box-shadow:0 0 0 2px #fff,0 0 20px -6px #fff}
- html.glass .big{font-size:28px;font-weight:800}html.glass .t{font-size:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
- html.glass .done .t{text-decoration:line-through;color:#B0B3B8}
- html.glass .foot{position:absolute;left:24px;bottom:14px;font-size:14px;color:#B0B3B8}
- html.web,html.web body{margin:0;background:#0b0f14;color:#e6edf3}
+ html.glass .tile{padding:16px 14px 14px;border-radius:22px;text-align:center}
+ html.glass .tile.focus{border-color:var(--tacc,var(--acc));
+   box-shadow:0 0 0 2px var(--tacc,var(--acc)),0 0 28px -6px var(--tacc,var(--acc)),0 14px 30px -18px rgba(0,0,0,.85)}
+ html.glass .plate{width:62px;height:62px;border-radius:18px;font-size:33px;margin:0 auto}
+ html.glass .tile .tname{margin-top:9px;font-size:21px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ html.glass .row{position:relative;overflow:hidden;display:flex;gap:12px;align-items:center;padding:12px 16px;border-radius:19px}
+ html.glass .row.focus{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc),0 0 24px -6px var(--acc),0 14px 30px -18px rgba(0,0,0,.85)}
+ html.glass .big{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums}
+ html.glass .t{font-size:22px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ html.glass .done .t{text-decoration:line-through;color:var(--ink2)}
+ /* Focused-row ticker (device finding 2026-07-11): long titles glide left and back so
+    the whole line is readable hands-free. Only the focused row moves (no jitter). */
+ html.glass .mq{display:inline-block;will-change:transform}
+ html.glass .row.focus .t{text-overflow:clip}
+ html.glass .row.focus .mq.go{animation:gcmarq var(--mqd,7s) ease-in-out infinite}
+ @keyframes gcmarq{0%,14%{transform:translateX(0)}46%,58%{transform:translateX(var(--mq,0px))}90%,100%{transform:translateX(0)}}
+ /* Glass detail scrolls (image + summary + actions can exceed 600px) */
+ html.glass #screen{max-height:502px;overflow-y:auto;overflow-x:hidden}
+ html.glass .dimg{max-height:280px;object-fit:cover}
+ html.glass .foot{position:absolute;left:24px;bottom:14px;font-size:12px;color:var(--ink3);
+   text-transform:uppercase;letter-spacing:.08em}
+ html.web,html.web body{margin:0;color:#e6edf3;
+   background:radial-gradient(120% 70% at 50% -10%,#0e1220 0%,#0b0e16 45%,#090b11 100%) fixed}
  html.web #app{max-width:640px;margin:0 auto;padding:0 16px 28px}
- html.web .head{position:sticky;top:0;background:#0b0f14;padding:12px 0;border-bottom:1px solid #1c232b;display:flex;gap:8px;align-items:center;justify-content:space-between}
+ html.web .head{position:sticky;top:0;background:rgba(10,12,18,.88);backdrop-filter:blur(10px);
+   padding:12px 0;border-bottom:1px solid var(--edge);display:flex;gap:8px;align-items:center;justify-content:space-between}
  html.web .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-top:12px}
- html.web .tile{position:relative;overflow:hidden;padding:22px 16px 18px;border:1px solid #1c232b;border-radius:16px;background:#11161c;cursor:pointer;text-align:center;transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease}
- html.web .tile::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:var(--acc,#4aa3ff)}
- html.web .tile:hover,html.web .tile.focus{border-color:var(--acc,#4aa3ff);box-shadow:0 0 0 2px var(--acc,#4aa3ff),0 10px 28px -12px var(--acc,#4aa3ff);transform:translateY(-2px)}
- html.web .tile .ic{font-size:40px}
- html.web .tile .tname{margin-top:8px;font-size:15px;font-weight:600;color:#e6edf3}
- html.web .row{display:flex;gap:10px;align-items:center;padding:12px;border:1px solid #1c232b;border-radius:12px;margin:8px 0;background:#11161c}
- html.web .row.done .t{text-decoration:line-through;color:#8b98a5}
- html.web .big{font-size:22px;font-weight:800;min-width:52px;text-align:right}html.web .t{font-size:16px;flex:1}
+ html.web .tile{padding:18px 14px 16px;border-radius:20px;cursor:pointer;text-align:center}
+ html.web .tile:hover,html.web .tile.focus{border-color:var(--tacc,var(--acc));transform:translateY(-2px);
+   box-shadow:0 0 0 1px var(--tacc,var(--acc)),0 14px 34px -14px var(--tacc,var(--acc))}
+ html.web .tile:active{transform:scale(.97)}
+ html.web .plate{width:52px;height:52px;border-radius:15px;font-size:27px;margin:0 auto}
+ html.web .tile .tname{margin-top:9px;font-size:14px;font-weight:600;color:#e6edf3}
+ html.web .row{display:flex;gap:10px;align-items:center;padding:12px 14px;border-radius:16px;margin:8px 0}
+ html.web .row.done .t{text-decoration:line-through;color:var(--ink2)}
+ html.web .big{font-size:22px;font-weight:800;min-width:52px;text-align:right;font-variant-numeric:tabular-nums}
+ html.web .t{font-size:16px;flex:1}
  @keyframes gcblink{0%,100%{opacity:1}50%{opacity:0}} .row.over .big{color:#ff4d4f;animation:gcblink 1s steps(1,end) infinite}
- html.web .iconbtn{border:1px solid #30363d;background:#161b22;color:#e6edf3;border-radius:8px;padding:6px 10px;cursor:pointer}
- html.web .iconbtn.on{color:#d29922;border-color:#d29922}
- html.web input{background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:8px;padding:8px;width:100%;margin:6px 0}
- html.web .addbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}html.web .primary{background:#1f6feb;border:0;color:#fff;border-radius:8px;padding:10px 16px;cursor:pointer}
- html.web .dropzone{border:1px dashed #30363d;border-radius:8px;padding:12px;text-align:center;color:#8b98a5;font-size:12px;cursor:pointer;margin:6px 0}
- html.web .dropzone.over{border-color:#1f6feb;color:#e6edf3;background:#0d1117}
- html.web .imgprev{max-height:120px;max-width:100%;border-radius:8px;margin:4px 0;display:none}
- .muted{color:#8b98a5;font-size:12px}#status{font-size:12px}
+ html.web .iconbtn{border:1px solid var(--edge);background:rgba(255,255,255,.06);color:#e6edf3;border-radius:10px;padding:6px 10px;cursor:pointer;transition:border-color .16s var(--ease)}
+ html.web .iconbtn:active{transform:scale(.97)}
+ html.web .iconbtn.on{color:#ffd66b;border-color:#ffd66b}
+ html.web input{background:rgba(255,255,255,.05);color:#e6edf3;border:1px solid var(--edge);border-radius:12px;padding:9px 11px;width:100%;margin:6px 0}
+ html.web input:focus{outline:none;border-color:var(--acc)}
+ html.web .addbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+ html.web .primary{background:var(--acc);border:0;color:#fff;border-radius:12px;padding:10px 16px;cursor:pointer;font-weight:600}
+ html.web .primary:active{transform:scale(.97)}
+ html.web .dropzone{border:1px dashed var(--edge);border-radius:12px;padding:12px;text-align:center;color:var(--ink2);font-size:12px;cursor:pointer;margin:6px 0}
+ html.web .dropzone.over{border-color:var(--acc);color:#e6edf3;background:rgba(76,141,255,.08)}
+ html.web .imgprev{max-height:120px;max-width:100%;border-radius:12px;margin:4px 0;display:none}
+ .muted{color:var(--ink2);font-size:12px}#status{font-size:12px}
+ /* Gesture hint rides in the top-right status slot on glass — must be readable there. */
+ html.glass #status{font-size:15px;color:#9ecbff;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -62,6 +99,10 @@
 </div>
 <script>
 "use strict";
+/* SINGLE-SOURCE LAUNCHER: this file is the only one you edit. tools/sync_public.py
+   generates worker/public/index.html from it by flipping PROD to true — the Worker-served
+   copy is same-origin (no API URL to type, /apps/ registry path, password-only setup). */
+var PROD=false;
 var GLASS=document.documentElement.className==="glass";
 var API="",TOKEN="",REG={apps:[]},MODE="launcher",focus=0,view="list";
 var CFG=null,CFGPATH="",COLL="",QKEY="",CKEY="",items=[],DACTS=[],dfocus=0,refreshTimer=null,tickTimer=null,rotTimer=null;
@@ -80,22 +121,30 @@ function readCreds(){
   if(t){ TOKEN=t; save("gc_token",t); }
   if(!API) API=load("gc_api","")||"";
   if(!TOKEN) TOKEN=load("gc_token","")||"";
+  if(PROD&&!API){ API=location.origin+"/api"; save("gc_api",API); }   // served by the same Worker
 }
 
 /* ================= SETUP ================= */
 function screenSetup(){
   MODE="setup"; document.getElementById("title").textContent="Setup";
   var s=document.getElementById("screen");
-  if(GLASS){ s.innerHTML='<div style="font-size:22px;line-height:1.5">One-time setup.<br>Open this launcher on your phone,<br>or register the URL with your API + password in the hash:<br><span class="muted">#api=YOUR_WORKER_URL/api&t=YOUR_PASSWORD</span></div>'; return; }
-  s.innerHTML='<p class="muted">One-time setup — used by every app.</p>'
-    +'<input id="s_api" placeholder="Worker API URL, e.g. https://glass-crud-api.xxx.workers.dev/api" value="'+esc(API)+'">'
+  if(GLASS){ s.innerHTML=PROD
+      ?'<div style="font-size:22px;line-height:1.5">One-time setup.<br>Register this URL with your password in the hash:<br><span class="muted">#glass&t=YOUR_PASSWORD</span></div>'
+      :'<div style="font-size:22px;line-height:1.5">One-time setup.<br>Open this launcher on your phone,<br>or register the URL with your API + password in the hash:<br><span class="muted">#api=YOUR_WORKER_URL/api&t=YOUR_PASSWORD</span></div>';
+    return; }
+  s.innerHTML=(PROD
+      ?'<p class="muted">One-time: enter your password (the app password you set on deploy). The API URL is this site.</p>'
+      :'<p class="muted">One-time setup — used by every app.</p>'
+       +'<input id="s_api" placeholder="Worker API URL, e.g. https://glass-crud-api.xxx.workers.dev/api" value="'+esc(API)+'">')
     +'<input id="s_tok" type="password" placeholder="Password (the app password you set on deploy)" value="'+esc(TOKEN)+'">'
     +'<button class="primary" id="s_save">Save & continue</button>'
-    +'<p class="muted" style="margin-top:14px">📷 Add to glasses: run <code>python tools/qr.py "Meta Glass" "https://YOUR-WORKER.workers.dev/#glass&t=YOUR_PASSWORD"</code> and scan the QR with your phone.</p>';
+    +'<p class="muted" style="margin-top:14px">📷 Add to glasses in one tap: run <code>python tools/qr.py "Meta Glass" "'
+    +(PROD?esc(location.origin):"https://YOUR-WORKER.workers.dev")+'/#glass&t=YOUR_PASSWORD"</code> and scan the QR with your phone.</p>';
   document.getElementById("s_save").onclick=function(){
-    API=document.getElementById("s_api").value.trim().replace(/\/$/,"");
+    var ai=document.getElementById("s_api");
+    if(ai){ API=ai.value.trim().replace(/\/$/,""); save("gc_api",API); }
     TOKEN=document.getElementById("s_tok").value.trim();
-    save("gc_api",API); save("gc_token",TOKEN); openLauncher();
+    save("gc_token",TOKEN); openLauncher();
   };
 }
 
@@ -105,7 +154,7 @@ function startRefresh(){ stopRefresh(); var s=CFG&&+CFG.refresh; if(s>=3)refresh
 var regTimer=null;
 async function fetchReg(tries){
   for(var i=0;i<(tries||1);i++){
-    try{ var r=await (await fetch("../apps/registry.json",{cache:"no-store"})).json();
+    try{ var r=await (await fetch(PROD?"/apps/registry.json":"../apps/registry.json",{cache:"no-store"})).json();
       if(r&&r.apps){ REG=r; if(r.apps.length) return true; } }catch(e){}
     if(i+1<(tries||1)) await new Promise(function(ok){setTimeout(ok,1000);});
   }
@@ -115,14 +164,19 @@ async function openLauncher(){
   stopRefresh(); stopTick(); stopRotate(); stopInspire();
   MODE="launcher"; view="list"; focus=0; CFG=null;
   document.getElementById("title").textContent="Apps";
-  if(!API||!TOKEN){ return screenSetup(); }
+  if((!PROD&&!API)||!TOKEN){ return screenSetup(); }
   if(!REG.apps.length) await fetchReg(1);
   renderLauncher();
 }
-var ACCENTS=["#4aa3ff","#41d18b","#ffb454","#c78bff","#ff6b81","#38d0d6","#f4d35e"];
-function accentFor(a,i){return (a&&a.accent)||ACCENTS[i%ACCENTS.length];}
+/* Icon-plate gradients (GlassKit palettes, ~150°). A config `accent` overrides both
+   gradient stops; otherwise apps cycle the six pairs by launcher position. */
+var PALETTES=[["#5b9dff","#2f5fe0"],["#3fe0a3","#11a36f"],["#ff7eb3","#ff8a5b"],
+              ["#b08bff","#7C3AED"],["#36d6ee","#0e8fc7"],["#ffd66b","#f5a623"]];
+function palFor(a,i){return (a&&a.accent)?[a.accent,a.accent]:PALETTES[i%PALETTES.length];}
 function renderLauncher(){
-  updateBack(); setStatus(""); setFoot((REG.apps.length||0)+" apps · [S] settings");
+  updateBack(); setStatus("");
+  var n=REG.apps.length||0, pages=Math.ceil(n/6)||1, page=Math.floor(focus/6);
+  document.getElementById("foot").innerHTML=n+' apps'+(GLASS&&pages>1?' · '+(page+1)+'/'+pages:'')+' · <a href="#" data-settings style="color:#4aa3ff;text-decoration:none">⚙ settings</a>';
   var s=document.getElementById("screen");
   if(!REG.apps.length){
     /* Registry unreachable or empty — say so brightly and keep retrying (no reload on glasses). */
@@ -131,8 +185,11 @@ function renderLauncher(){
     regTimer=setTimeout(function(){ if(MODE==="launcher"&&!REG.apps.length) openLauncher(); },8000);
     return;
   }
-  s.innerHTML='<div class="grid">'+REG.apps.map(function(a,i){
-    return '<div class="tile'+(i===focus?" focus":"")+'" data-i="'+i+'" style="--acc:'+accentFor(a,i)+'"><div class="ic">'+esc(a.icon||"▦")+'</div><div class="tname">'+esc(a.name)+'</div></div>';
+  /* Glasses page the grid by 6 (2×3 always fits 600px); phone/desktop scroll instead. */
+  var start=GLASS?page*6:0, slice=GLASS?REG.apps.slice(start,start+6):REG.apps;
+  s.innerHTML='<div class="grid">'+slice.map(function(a,j){
+    var i=start+j, p=palFor(a,i);
+    return '<div class="tile'+(i===focus?" focus":"")+'" data-i="'+i+'" style="--tacc:'+p[0]+';--g1:'+p[0]+';--g2:'+p[1]+'"><div class="plate">'+esc(a.icon||"▦")+'</div><div class="tname">'+esc(a.name)+'</div></div>';
   }).join("")+'</div>';
 }
 
@@ -198,7 +255,14 @@ function startRotate(){stopRotate();var s=+((CFG||{}).rotate)||0;
 function startTick(){stopTick();if(isCd())tickTimer=setInterval(tickCd,1000);}
 function tickCd(){if(MODE!=="app"||view!=="list"||!isCd())return;var b=CFG.row.badge,amb=CFG.row.amber,rows=document.querySelectorAll("#screen .row");for(var i=0;i<rows.length;i++){var it=items[+rows[i].getAttribute("data-i")];if(!it)continue;var big=rows[i].querySelector(".big");if(big)big.textContent=cdTime(it[b]);var t=rows[i].querySelector(".t");if(t)t.textContent=cdPhase(it[b],it[amb]);rows[i].classList.toggle("over",cdMs(it[b])<=0);}}
 function render(){ if(MODE!=="app")return; updateBack(); view==="detail"?renderDetail():renderList();
-  setFoot(view==="detail"&&CFG.fullscreen&&items.length?(focus+1)+"/"+items.length+" · "+(CFG.title||"")+" · [↑↓] switch":(CFG.title||"")+" · "+items.length+" · [←] apps"); }
+  /* Teach the gestures (device findings 2026-07-11): swipe → = next story. The bottom
+     footer is hard to see on the real display, so in glass detail the hint lives in the
+     TOP-RIGHT status slot (like the online badge) — always in view. */
+  var AD=(CFG.actions||{}).delete;
+  if(GLASS&&view==="detail"&&AD&&items.length)setStatus((focus+1)+"/"+items.length+" · → next · ↓ read");
+  setFoot(view==="detail"&&CFG.fullscreen&&items.length?(focus+1)+"/"+items.length+" · "+(CFG.title||"")+" · [↑↓] switch"
+    :view==="detail"&&AD&&items.length?(focus+1)+"/"+items.length+" · → next story · ↓ read · ← back"
+    :(CFG.title||"")+" · "+items.length+" · [←] apps"); }
 function controlURL(){return CFG.control?CFGPATH.replace(/[^/]+$/,"")+CFG.control:"";}
 function renderList(){var A=CFG.actions||{},s=document.getElementById("screen");
   var start=GLASS?Math.floor(focus/5)*5:0,slice=GLASS?items.slice(start,start+5):items,html="";
@@ -211,12 +275,19 @@ function renderList(){var A=CFG.actions||{},s=document.getElementById("screen");
     var cd=isCd(),bigv=cd?cdTime(it[CFG.row.badge]):rb(it),titv=cd?cdPhase(it[CFG.row.badge],it[CFG.row.amber]):rt(it),over=cd&&cdMs(it[CFG.row.badge])<=0;
     html+='<div class="row'+(g===focus?" focus":"")+(it.seen?" done":"")+(over?" over":"")+'" data-i="'+g+'">'
       +((bigv!==""&&bigv!=null)?'<div class="big">'+esc(bigv)+'</div>':'')
-      +((!cd&&fieldType(CFG.row.title)==="image")?'<img src="'+esc(rt(it))+'" alt="" style="height:'+(GLASS?64:44)+'px;max-width:'+(GLASS?128:96)+'px;object-fit:cover;border-radius:6px">':'<div class="t">'+esc(titv)+'</div>');
+      +((!cd&&fieldType(CFG.row.title)==="image")?'<img src="'+esc(rt(it))+'" alt="" style="height:'+(GLASS?64:44)+'px;max-width:'+(GLASS?128:96)+'px;object-fit:cover;border-radius:6px">':'<div class="t"><span class="mq">'+esc(titv)+'</span></div>');
     if(!GLASS){if(A.check)html+='<button class="iconbtn'+(it.seen?" on":"")+'" data-act="check" data-id="'+esc(it.id)+'">✓</button>';
       if(A.fav)html+='<button class="iconbtn'+(it.fav?" on":"")+'" data-act="fav" data-id="'+esc(it.id)+'">★</button>';
       if(A.delete)html+='<button class="iconbtn" data-act="del" data-id="'+esc(it.id)+'">🗑</button>';}
     html+='</div>';}
-  s.innerHTML=html; if(!GLASS&&A.add)wireAddBar(); stopInspire();
+  s.innerHTML=html; if(!GLASS&&A.add)wireAddBar(); stopInspire(); wireMarquee();
+}
+/* Measure the focused row's overflow and start the back-and-forth ticker if it clips. */
+function wireMarquee(){ if(!GLASS)return;
+  var t=document.querySelector(".row.focus .t"),m=t&&t.querySelector(".mq"); if(!t||!m)return;
+  var ov=m.scrollWidth-t.clientWidth;
+  if(ov>8){ m.style.setProperty("--mq",(-(ov+10))+"px");
+    m.style.setProperty("--mqd",Math.max(6,Math.round(ov/30))+"s"); m.classList.add("go"); }
 }
 function openURL(u){try{var w=window.open(u,"_blank","noopener");if(!w)location.href=u;}catch(e){location.href=u;}}
 function toggleAudio(id){var a=document.getElementById(id);if(!a)return;if(a.paused){a.play();}else{a.pause();}}
@@ -258,6 +329,10 @@ function detailActions(it){var A=CFG.actions||{},acts=[];
     acts.push({label:"↺ Reset",run:function(){cdAction(it.id,"reset");}});}
   if(A.check)acts.push({label:it.seen?"✓ Uncheck":"✓ Check off",run:function(){act(it.id,"check");}});
   if(A.fav)acts.push({label:it.fav?"★ Unfavorite":"★ Favorite",run:function(){act(it.id,"fav");}});
+  /* Gesture-independent dismiss (device finding 2026-07-11: the band's right-swipe
+     doesn't reliably reach the page as ArrowRight) — Enter on this always works. */
+  if(A.delete)acts.push({label:"✕ Dismiss — next story",run:function(){
+    doDelete(it.id); dfocus=0; if(!items.length)view="list"; render();}});
   return acts;}
 function renderFullscreen(it,A){var f=(CFG.fields||[]).find(function(x){return x.type==="image";}),url=f?it[f.key]:"";
   DACTS=detailActions(it);var ov="";
@@ -277,8 +352,8 @@ function renderDetail(){var it=items[focus]||{},A=CFG.actions||{};
     else if(ty==="geo"&&v)disp='<a href="https://maps.google.com/?q='+encodeURIComponent(v)+'" target="_blank" style="color:#8ab4f8">'+esc(v)+'</a>';
     else if((ty==="link"||ty==="video")&&v)disp='<a href="'+esc(v)+'" target="_blank" style="color:#8ab4f8">▶ Open</a>';
     else if(ty==="audio"&&v)disp='<audio id="au_'+esc(k)+'" controls preload="none" src="'+esc(v)+'" style="width:100%;display:block"></audio>';
-    else if(ty==="image"&&v)disp='<img src="'+esc(v)+'" alt="" style="width:100%;border-radius:10px;display:block" loading="lazy">';
-    html+='<div class="muted">'+esc(k)+'</div><div style="font-size:20px;margin-bottom:8px">'+disp+'</div>';});
+    else if(ty==="image"&&v)disp='<img class="dimg" src="'+esc(v)+'" alt="" style="width:100%;border-radius:10px;display:block" loading="lazy">';
+    html+='<div class="muted">'+esc(k)+'</div><div style="font-size:20px;margin-bottom:8px;white-space:pre-line">'+disp+'</div>';});
   DACTS=detailActions(it);
   if(GLASS){if(dfocus>=DACTS.length)dfocus=0;
     DACTS.forEach(function(a,i){html+='<div class="row'+(i===dfocus?" focus":"")+'" style="margin:8px 0">'+esc(a.label)+'</div>';});
@@ -287,6 +362,11 @@ function renderDetail(){var it=items[focus]||{},A=CFG.actions||{};
     if(A.delete)html+='<button class="iconbtn" data-act="del" data-id="'+esc(it.id)+'">🗑 delete</button>';}
   document.getElementById("screen").innerHTML=html+'</div>';
   wireInspire();
+  /* Glass detail is scrollable: land at the top when opening, then keep the focused
+     action in view while arrowing down (which walks the reader through the text). */
+  if(GLASS){ var scr=document.getElementById("screen");
+    if(dfocus===0){ scr.scrollTop=0; }
+    else{ var fr=scr.querySelector(".row.focus"); if(fr&&fr.scrollIntoView)fr.scrollIntoView({block:"nearest"}); } }
 }
 var ADD_FIELDS=[];
 function buildAddBar(){ADD_FIELDS=(CFG.actions&&CFG.actions.add)?(CFG.fields||[]):[];}
@@ -337,6 +417,7 @@ function contextBack(){ if(MODE==="app"&&view==="detail"){view="list";render();}
 document.getElementById("backbtn").onclick=contextBack;
 document.getElementById("app").addEventListener("click",function(e){
   if(e.target.closest("#backbtn"))return;
+  var st=e.target.closest("[data-settings]"); if(st){e.preventDefault();screenSetup();return;}
   var geo=e.target.closest("[data-geo]"); if(geo){captureGeo(geo.getAttribute("data-geo"));return;}
   var nav=e.target.closest("[data-nav]"); if(nav){contextBack();return;}
   var b=e.target.closest("[data-act]"); if(b){act(b.getAttribute("data-id"),b.getAttribute("data-act"));return;}
@@ -361,11 +442,26 @@ document.addEventListener("keydown",function(e){
         if(e.key==="ArrowDown"){e.preventDefault();focus=(focus+1)%items.length;render();return;}
         if(e.key==="ArrowUp"){e.preventDefault();focus=(focus-1+items.length)%items.length;render();return;}
       }
-      if(e.key==="ArrowDown"){if(DACTS.length){e.preventDefault();dfocus=(dfocus+1)%DACTS.length;render();}return;}
-      if(e.key==="ArrowUp"){if(DACTS.length){e.preventDefault();dfocus=(dfocus-1+DACTS.length)%DACTS.length;render();}return;}
+      /* D-pad right = throw the article away, show the next one (device finding
+         2026-07-11; needs actions.delete). Back-and-forth safe: ← still exits.
+         Gesture mapping on the band proved unreliable, so dismiss ALSO exists as a
+         focusable "✕ Dismiss" action (Enter) — see detailActions. */
+      if(e.key==="ArrowRight"&&A.delete&&items[focus]){e.preventDefault();
+        doDelete(items[focus].id); dfocus=0;
+        if(!items.length){view="list";} render(); return;}
+      /* ↓ first scrolls THROUGH the story (device finding: focus used to jump straight
+         to the bottom actions, cutting off the middle), then cycles the actions. */
+      if(e.key==="ArrowDown"){e.preventDefault();var sd=document.getElementById("screen");
+        if(GLASS&&dfocus===0&&sd.scrollTop+sd.clientHeight<sd.scrollHeight-8){sd.scrollTop+=300;return;}
+        if(DACTS.length){dfocus=(dfocus+1)%DACTS.length;render();}return;}
+      if(e.key==="ArrowUp"){e.preventDefault();var su=document.getElementById("screen");
+        if(DACTS.length&&dfocus>0){dfocus--;render();return;}
+        if(GLASS&&su.scrollTop>0){su.scrollTop-=300;}return;}
       if(e.key==="Enter"){e.preventDefault();if(DACTS[dfocus])DACTS[dfocus].run();return;}
       return;}
     if(e.key==="ArrowLeft"){e.preventDefault();openLauncher();return;}
+    /* List-view dismiss too (the user may swipe right on a ROW, not just in detail). */
+    if(e.key==="ArrowRight"&&A.delete&&items[focus]){e.preventDefault();act(items[focus].id,"del");return;}
     if(e.key==="ArrowDown"){e.preventDefault();focus=(focus+1)%Math.max(1,items.length);render();return;}
     if(e.key==="ArrowUp"){e.preventDefault();focus=(focus-1+items.length)%Math.max(1,items.length);render();return;}
     if(e.key==="Enter"){e.preventDefault();dfocus=0;view="detail";render();return;}
@@ -379,8 +475,8 @@ window.addEventListener("popstate",function(){ if(MODE==="app"){ contextBack(); 
 /* ================= boot ================= */
 (async function(){
   readCreds();
-  var deep=new URLSearchParams(location.search).get("config");
-  if(!API||!TOKEN){ screenSetup(); return; }
+  var deep=PROD?null:new URLSearchParams(location.search).get("config");
+  if((!PROD&&!API)||!TOKEN){ screenSetup(); return; }
   await fetchReg(2);
   if(deep){ REG.apps.unshift({name:"App",icon:"▦",config:deep}); openApp(0); }
   else openLauncher();

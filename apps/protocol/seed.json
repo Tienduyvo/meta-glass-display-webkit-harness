@@ -1,0 +1,57 @@
+[
+ {
+  "id": "s_01",
+  "n": 1,
+  "step": "Weigh crude benzoic acid into a clean Erlenmeyer flask.",
+  "reagent": "benzoic acid (C7H6O2)",
+  "amount": "2 g / 0.0164 mol",
+  "hazard": "⚠ H302 H315 H318 H319 H335 H361 H372 H373",
+  "note": "",
+  "seen": false,
+  "fav": false
+ },
+ {
+  "id": "s_02",
+  "n": 2,
+  "step": "Add the minimum boiling water to dissolve; heat on a hot plate.",
+  "reagent": "water (H2O)",
+  "amount": "",
+  "hazard": "low hazard",
+  "note": "",
+  "seen": false,
+  "fav": false
+ },
+ {
+  "id": "s_03",
+  "n": 3,
+  "step": "Add decolorizing charcoal if the solution is coloured, then hot-filter.",
+  "reagent": "activated carbon (C)",
+  "amount": "",
+  "hazard": "⚠ H319 H335",
+  "note": "",
+  "seen": false,
+  "fav": false
+ },
+ {
+  "id": "s_04",
+  "n": 4,
+  "step": "Cool the filtrate slowly to room temperature, then in an ice bath, to crystallize.",
+  "reagent": "",
+  "amount": "",
+  "hazard": "",
+  "note": "Slow cooling = larger, purer crystals.",
+  "seen": false,
+  "fav": false
+ },
+ {
+  "id": "s_05",
+  "n": 5,
+  "step": "Vacuum-filter the crystals, wash with a little cold water, and dry.",
+  "reagent": "",
+  "amount": "",
+  "hazard": "",
+  "note": "Record yield and melting point.",
+  "seen": false,
+  "fav": false
+ }
+]

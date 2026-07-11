@@ -1,0 +1,11 @@
+{
+  "_comment": "GENERIC, non-sensitive EXAMPLE procedure only (repo stays template-level; no personal/sensitive protocols in git). A textbook recrystallization of benzoic acid — a common, safe teaching prep — used to demo the step+hazard+amount format. Real procedures are supplied by the chemist and pushed from their PC, never committed. Format: 'scale' gives a target for stoichiometry hints; each step may name a 'reagent' (resolved to PubChem GHS + MW) and a target 'mol' or 'mass_g'.",
+  "name": "Recrystallization of benzoic acid (example)",
+  "steps": [
+    { "step": "Weigh crude benzoic acid into a clean Erlenmeyer flask.", "reagent": "benzoic acid", "mass_g": 2.0 },
+    { "step": "Add the minimum boiling water to dissolve; heat on a hot plate.", "reagent": "water" },
+    { "step": "Add decolorizing charcoal if the solution is coloured, then hot-filter.", "reagent": "activated carbon" },
+    { "step": "Cool the filtrate slowly to room temperature, then in an ice bath, to crystallize.", "note": "Slow cooling = larger, purer crystals." },
+    { "step": "Vacuum-filter the crystals, wash with a little cold water, and dry.", "note": "Record yield and melting point." }
+  ]
+}

@@ -1,0 +1,4 @@
+{
+  "_comment": "DEFAULT TEMPLATE ONLY — no personal data (repo stays template-level). The user's real books live in the PRIVATE profile (scope 'audiobooks', via tools/profile.py). Entries are LibriVox search terms (title, optionally 'title|language'); the pipeline resolves each to its per-book RSS feed.",
+  "books": ["Alice's Adventures in Wonderland", "The Adventures of Sherlock Holmes"]
+}
