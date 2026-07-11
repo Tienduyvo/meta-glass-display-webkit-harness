@@ -4,7 +4,9 @@
   "model": "claude-fable-5",
   "tokens": {
    "build": 145000,
-   "fix": 90000
+   "fix": 90000,
+   "measured_out": 146087,
+   "measured_in": 383
   }
  },
  "podcasts": {
@@ -12,28 +14,78 @@
   "model": "claude-fable-5",
   "tokens": {
    "build": 70000,
-   "fix": 20000
+   "fix": 20000,
+   "measured_out": 21116,
+   "measured_in": 35
   }
  },
  "audiobooks": {
   "build_seconds": 816,
   "model": "claude-fable-5",
   "tokens": {
-   "build": 65000
+   "build": 65000,
+   "measured_out": 12640,
+   "measured_in": 22
   }
  },
  "memes": {
   "build_seconds": 586,
   "model": "claude-fable-5",
   "tokens": {
-   "build": 40000
+   "build": 40000,
+   "measured_out": 7368,
+   "measured_in": 88
   }
  },
  "protocol": {
   "build_seconds": 624,
   "model": "claude-fable-5",
   "tokens": {
-   "build": 55000
+   "build": 55000,
+   "measured_out": 10820,
+   "measured_in": 20
+  }
+ },
+ "buy-list": {
+  "tokens": {
+   "measured_out": 2492,
+   "measured_in": 136
+  }
+ },
+ "todo": {
+  "tokens": {
+   "measured_out": 3928,
+   "measured_in": 162
+  }
+ },
+ "wallpaper": {
+  "tokens": {
+   "measured_out": 43822,
+   "measured_in": 1250
+  }
+ },
+ "presentation-timer": {
+  "tokens": {
+   "measured_out": 72938,
+   "measured_in": 1902
+  }
+ },
+ "flashcards": {
+  "tokens": {
+   "measured_out": 5891,
+   "measured_in": 157
+  }
+ },
+ "stencil": {
+  "tokens": {
+   "measured_out": 29049,
+   "measured_in": 165
+  }
+ },
+ "daily-ritual": {
+  "tokens": {
+   "measured_out": 54192,
+   "measured_in": 6193
   }
  }
 }

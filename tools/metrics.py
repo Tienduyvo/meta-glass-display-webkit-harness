@@ -124,8 +124,14 @@ def collect():
         led = ledger.get(slug, {})
         tok = led.get("tokens")
         model = led.get("model", "")
-        tok_cell = "%s (build) / %s (fix)" % (_ktok(tok.get("build")), _ktok(tok.get("fix"))) \
-            if isinstance(tok, dict) else "—"
+        if isinstance(tok, dict) and tok.get("measured_out"):
+            # real numbers from tools/token_tracker.py (session transcripts) win
+            tok_cell = "%s out / %s in (measured)" % (_ktok(tok["measured_out"]),
+                                                      _ktok(tok.get("measured_in")))
+        elif isinstance(tok, dict) and (tok.get("build") or tok.get("fix")):
+            tok_cell = "%s build / %s fix (est.)" % (_ktok(tok.get("build")), _ktok(tok.get("fix")))
+        else:
+            tok_cell = "—"
         # Durations only, no calendar dates (owner rule 2026-07-11): "when" an app was
         # built is personal schedule information and stays out of the README.
         rows.append({
