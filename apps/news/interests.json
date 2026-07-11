@@ -1,0 +1,9 @@
+{
+  "_comment": "DEFAULT TEMPLATE ONLY — no personal data (owner rule 2026-07-11: personal config never lives in the repo). The real interests live in the PRIVATE `profile` collection (scope 'news', managed via tools/profile.py and filled by AI interview in the setup wizard / any chat); the pipeline prefers that and falls back to this file on fresh forks. 'template' picks the widget in control.html (ticker|headline|summary|hero); 'tickers' adds Yahoo per-symbol news + live quote tags; 'query' searches news.",
+  "max_per_section": 6,
+  "sections": [
+    { "name": "Top Stories", "template": "hero", "query": "top news today" },
+    { "name": "Technology", "template": "headline", "query": "technology" }
+  ],
+  "discover": { "name": "Discover", "template": "summary", "max": 4 }
+}

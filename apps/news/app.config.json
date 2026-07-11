@@ -1,0 +1,23 @@
+{
+  "title": "News",
+  "collection": "news",
+  "readOnly": true,
+  "control": "control.html",
+  "fields": [
+    { "key": "tag",      "label": "Tag",      "type": "text" },
+    { "key": "headline", "label": "Headline", "type": "text" },
+    { "key": "summary",  "label": "Summary",  "type": "text" },
+    { "key": "body",     "label": "Story",    "type": "text" },
+    { "key": "price",    "label": "Price",    "type": "text" },
+    { "key": "source",   "label": "Source",   "type": "text" },
+    { "key": "image",    "label": "Image",    "type": "image" },
+    { "key": "section",  "label": "Section",  "type": "text" },
+    { "key": "template", "label": "Template", "type": "text" },
+    { "key": "rank",     "label": "Rank",     "type": "number" }
+  ],
+  "row": { "title": "headline", "badge": "tag" },
+  "detail": ["headline", "image", "body", "price", "source", "section"],
+  "actions": { "add": false, "check": true, "fav": true, "delete": true },
+  "sort": { "key": "rank", "dir": "asc" },
+  "refresh": 60
+}

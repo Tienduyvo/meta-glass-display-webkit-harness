@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>News</title>
+<style>
+  :root { --bg:#0b0d10; --panel:#15181d; --panel2:#1b1f26; --line:#262b33; --ink:#e8ecf1;
+          --dim:#8b94a1; --up:#1db954; --down:#ff4d4f; --accent:#3b82f6; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  .wrap { max-width:640px; margin:0 auto; padding:16px 16px 40px; }
+  .top { display:flex; align-items:center; gap:10px; margin:4px 0 14px; }
+  .top a { color:var(--dim); text-decoration:none; font-size:13px; border:1px solid var(--line);
+    border-radius:10px; padding:6px 10px; white-space:nowrap; }
+  h1 { font-size:15px; font-weight:600; letter-spacing:.02em; color:var(--dim); margin:0;
+    text-transform:uppercase; flex:1; }
+  .status { font-size:12px; color:var(--dim); }
+  .status.ok { color:var(--up); } .status.err { color:var(--down); }
+
+  .section { margin:20px 0 0; }
+  .sechead { display:flex; align-items:baseline; gap:8px; margin:0 0 10px; }
+  .sechead b { font-size:18px; letter-spacing:.01em; }
+  .sechead .bar { display:inline-block; width:22px; height:5px; border-radius:3px;
+    background:var(--acc,var(--accent)); }
+  .sechead .n { color:var(--dim); font-size:12px; }
+
+  /* --- template: ticker (price chips + compact headlines) --- */
+  .chips { display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; -webkit-overflow-scrolling:touch; }
+  .chip { flex:0 0 auto; background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:10px 14px; text-align:center; min-width:96px; }
+  .chip .sym { font-weight:700; font-size:15px; }
+  .chip .px { font-variant-numeric:tabular-nums; font-size:13px; margin-top:2px; color:var(--dim); }
+  .chip .px.up { color:var(--up); } .chip .px.down { color:var(--down); }
+
+  /* --- template: headline (rows) --- */
+  .hrow { display:flex; gap:10px; align-items:flex-start; background:var(--panel);
+    border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin:8px 0; cursor:pointer; }
+  .hrow.read { opacity:.55; }
+  .tagchip { flex:0 0 auto; font-size:12px; font-weight:700; padding:3px 8px; border-radius:8px;
+    background:var(--panel2); border:1px solid var(--line); color:var(--acc,var(--accent));
+    max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hrow .ht { flex:1; font-size:15px; line-height:1.4; }
+  .hrow .meta { font-size:12px; color:var(--dim); margin-top:4px; }
+  .dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--acc,var(--accent));
+    margin-right:6px; vertical-align:1px; }
+  .acts { flex:0 0 auto; display:flex; gap:6px; }
+  .acts button { font:inherit; font-size:13px; border:1px solid var(--line); background:transparent;
+    color:var(--dim); border-radius:8px; padding:4px 8px; cursor:pointer; }
+  .acts button.on { color:#f5b301; border-color:#f5b301; }
+
+  /* --- template: summary (cards with the paragraph) --- */
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    padding:14px 16px; margin:10px 0; cursor:pointer; }
+  .card.read { opacity:.55; }
+  .card .ht { font-size:16px; font-weight:600; line-height:1.35; }
+  .card .sum { font-size:14px; color:#c3cad4; line-height:1.5; margin:8px 0 0; }
+  .card .meta { display:flex; gap:8px; align-items:center; font-size:12px; color:var(--dim); margin-top:10px; }
+
+  /* --- template: hero (big top story + rows) --- */
+  .hero { background:linear-gradient(160deg,var(--panel2),var(--panel)); border:1px solid var(--line);
+    border-left:5px solid var(--acc,var(--accent)); border-radius:18px; padding:18px; margin:8px 0 4px; cursor:pointer; }
+  .hero.read { opacity:.55; }
+  .hero .ht { font-size:20px; font-weight:700; line-height:1.3; }
+  .hero .sum { font-size:14px; color:#c3cad4; line-height:1.5; margin:10px 0 0; }
+  .hero .meta { font-size:12px; color:var(--dim); margin-top:10px; }
+
+  .thumb { width:80px; height:80px; object-fit:cover; border-radius:11px; flex:0 0 auto; }
+  .heroimg { width:100%; max-height:240px; object-fit:cover; border-radius:12px; display:block; margin:0 0 12px; }
+  .cardimg { width:100%; max-height:180px; object-fit:cover; border-radius:11px; display:block; margin:0 0 10px; }
+
+  .empty { text-align:center; padding:60px 20px; }
+  .empty .big { font-size:44px; }
+  .empty b { display:block; font-size:18px; margin:10px 0 6px; }
+  .empty p { color:var(--dim); font-size:14px; line-height:1.6; margin:0; }
+  .empty code { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:2px 6px; }
+  fieldset { border:1px solid var(--line); border-radius:14px; margin:14px 0 0; padding:12px 14px 16px; }
+  legend { color:var(--dim); font-size:12px; text-transform:uppercase; letter-spacing:.05em; padding:0 6px; }
+  label { display:block; font-size:13px; color:var(--dim); margin:10px 0 5px; }
+  input { width:100%; font:inherit; font-size:16px; padding:11px 12px; border-radius:11px;
+    border:1px solid var(--line); background:#0f1216; color:var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a href="/">‹ Apps</a>
+    <h1>📰 News</h1>
+    <span id="status" class="status">loading…</span>
+  </div>
+  <div id="feed"></div>
+  <fieldset id="backend" hidden>
+    <legend>Backend (once)</legend>
+    <label for="api">Worker URL</label>
+    <input id="api" placeholder="https://your-worker.workers.dev" autocomplete="off">
+    <label for="tok">App password</label>
+    <input id="tok" type="password" placeholder="your API_SECRET" autocomplete="off">
+  </fieldset>
+</div>
+
+<script>
+"use strict";
+var COLLECTION = "news";
+var $ = function(id){ return document.getElementById(id); };
+var ls = {
+  get:function(k,d){ try{ var v=localStorage.getItem("nw_"+k); return v==null?d:v; }catch(e){ return d; } },
+  set:function(k,v){ try{ localStorage.setItem("nw_"+k, v); }catch(e){} }
+};
+// Zero-setup when opened from the launcher: adopt api/token passed in the URL (#api=..&t=..).
+(function(){ try{
+  var p=new URLSearchParams((location.hash.replace(/^#/,"&")+"&"+location.search.replace(/^\?/,"")).replace(/^&/,""));
+  var a=p.get("api"), t=p.get("t")||p.get("token");
+  if(a) ls.set("api", a.replace(/\/+$/,"").replace(/\/api$/,""));
+  if(t) ls.set("tok", t);
+}catch(e){} })();
+function apiBase(){ return (ls.get("api", ($("api")||{}).value||"")||"").trim().replace(/\/+$/,""); }
+function token(){ return (ls.get("tok", ($("tok")||{}).value||"")||"").trim(); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+function setStatus(cls,t){ var el=$("status"); el.className="status "+(cls||""); el.textContent=t; }
+
+var items=[];
+async function fetchItems(){
+  var base=apiBase(), tok=token();
+  if(!base||!tok){ $("backend").hidden=false; setStatus("err","set backend below"); renderEmpty(); return; }
+  try{
+    var r=await fetch(base+"/api/"+COLLECTION,{headers:{Authorization:"Bearer "+tok}});
+    if(!r.ok) throw 0;
+    items=(await r.json()).items||[];
+    setStatus("ok","live");
+  }catch(e){ setStatus("err","offline"); }
+  render();
+}
+async function patch(id,p){
+  try{ await fetch(apiBase()+"/api/"+COLLECTION+"/"+id,{method:"PATCH",
+    headers:{"Content-Type":"application/json",Authorization:"Bearer "+token()},body:JSON.stringify(p)});
+  }catch(e){}
+}
+function openArt(it){ if(it.url){ patch(it.id,{seen:true}); it.seen=true; render();
+  try{ var w=window.open(it.url,"_blank","noopener"); if(!w) location.href=it.url; }catch(e){ location.href=it.url; } } }
+function toggleFav(it,ev){ ev.stopPropagation(); it.fav=!it.fav; patch(it.id,{fav:it.fav}); render(); }
+function toggleRead(it,ev){ ev.stopPropagation(); it.seen=!it.seen; patch(it.id,{seen:it.seen}); render(); }
+
+var ACCENTS=["#4aa3ff","#41d18b","#ffb454","#c78bff","#ff6b81","#38d0d6","#f4d35e"];
+function meta(it){ return [it.source, it.price].filter(Boolean).map(esc).join(" · "); }
+/* Generic content-driven visuals (owner rule: generic, not domain widgets). Any item may
+   carry a `viz` JSON payload; the PIPELINE decides what shape fits the content:
+     {type:"series", values:[..], delta?}          -> inline line chart (stocks, temps, counts)
+     {type:"pairs",  rows:[[left,value,right],..]} -> board rows (scores, matchups, standings)
+     {type:"stat",   value:"42", label:"..."}      -> big number readout
+   Every template renders viz when present, so new domains need data, not UI code. */
+function vizHTML(v){
+  if(!v) return "";
+  try{ if(typeof v==="string") v=JSON.parse(v); }catch(e){ return ""; }
+  if(v.type==="series"&&Array.isArray(v.values)&&v.values.length>1){
+    var vals=v.values.map(Number).filter(isFinite); if(vals.length<2) return "";
+    var min=Math.min.apply(null,vals),max=Math.max.apply(null,vals),span=(max-min)||1;
+    var W=220,H=44,pts=vals.map(function(y,i){
+      return (i*(W/(vals.length-1))).toFixed(1)+","+(H-4-((y-min)/span)*(H-8)).toFixed(1);
+    }).join(" ");
+    var up=(v.delta!=null)?(+v.delta>=0):(vals[vals.length-1]>=vals[0]), col=up?"var(--up)":"var(--down)";
+    return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:'+H+'px;display:block;margin-top:8px" preserveAspectRatio="none">'
+      +'<polyline points="'+pts+'" fill="none" stroke="'+col+'" stroke-width="2" stroke-linejoin="round"/>'
+      +'<circle r="3" fill="'+col+'" cx="'+pts.split(" ").pop().split(",")[0]+'" cy="'+pts.split(" ").pop().split(",")[1]+'"/></svg>';
+  }
+  if(v.type==="pairs"&&Array.isArray(v.rows)&&v.rows.length){
+    return '<div style="margin-top:8px">'+v.rows.map(function(r){
+      return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line)">'
+        +'<span style="flex:1;text-align:right;font-size:14px">'+esc(r[0])+'</span>'
+        +'<span style="flex:0 0 auto;font-weight:800;font-size:16px;font-variant-numeric:tabular-nums;padding:2px 10px;border:1px solid var(--line);border-radius:9px;background:var(--panel2)">'+esc(r[1])+'</span>'
+        +'<span style="flex:1;font-size:14px">'+esc(r[2]||"")+'</span></div>';
+    }).join("")+'</div>';
+  }
+  if(v.type==="stat"&&v.value!=null){
+    return '<div style="margin-top:8px;text-align:center"><div style="font-size:34px;font-weight:800;font-variant-numeric:tabular-nums">'+esc(v.value)
+      +'</div>'+(v.label?'<div style="font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em">'+esc(v.label)+'</div>':'')+'</div>';
+  }
+  return "";
+}
+function actsHTML(i){ var it=items.find(function(x){return x.id===i;})||{};
+  return '<span class="acts"><button data-fav="'+esc(i)+'" class="'+(it.fav?"on":"")+'">★</button>'
+        +'<button data-read="'+esc(i)+'">✓</button>'
+        +'<button data-dismiss="'+esc(i)+'" title="Dismiss — next story fills in">✕</button></span>'; }
+/* Dismiss = delete the row; the section shows its top CAP items, so a reserve story
+   (the pipeline over-fetches +4) slides in immediately — click away, news repopulates. */
+function dismiss(it){
+  items=items.filter(function(x){return x.id!==it.id;});
+  try{ fetch(apiBase()+"/api/"+COLLECTION+"/"+it.id,{method:"DELETE",
+    headers:{Authorization:"Bearer "+token()}}); }catch(e){}
+  render();
+}
+function rowHTML(it){
+  return '<div class="hrow'+(it.seen?" read":"")+'" data-open="'+esc(it.id)+'">'
+    +(it.tag?'<span class="tagchip">'+esc(it.tag)+'</span>':'')
+    +'<span class="ht">'+(it.seen?'':'<span class="dot"></span>')+esc(it.headline)
+    +'<div class="meta">'+meta(it)+'</div>'+vizHTML(it.viz)+'</span>'
+    +(it.image?'<img class="thumb" src="'+esc(it.image)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">':'')
+    +actsHTML(it.id)+'</div>';
+}
+/* The widget templates — one function per look. Adding a new look = adding one entry here
+   and naming it in interests.json / an item's `template` field. Unknown names fall back to
+   `headline`, so a section is never blank. */
+var TPL={
+  headline:function(sec){ return sec.items.map(rowHTML).join(""); },
+  ticker:function(sec){
+    var chips=sec.items.filter(function(it){return it.tag;}).map(function(it){
+      var up=/[▲+]/.test(it.price||""), down=/[▼-]/.test(it.price||"");
+      return '<div class="chip"><div class="sym">'+esc((it.tag||"").split(" ")[0])+'</div>'
+        +'<div class="px '+(up?"up":down?"down":"")+'">'+esc(it.price||"—")+'</div></div>';
+    });
+    var seen={},uniq=[];chips.forEach(function(c){if(!seen[c]){seen[c]=1;uniq.push(c);}});
+    return '<div class="chips">'+uniq.join("")+'</div>'+sec.items.map(rowHTML).join("");
+  },
+  summary:function(sec){ return sec.items.map(function(it){
+    return '<div class="card'+(it.seen?" read":"")+'" data-open="'+esc(it.id)+'">'
+      +(it.image?'<img class="cardimg" src="'+esc(it.image)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">':'')
+      +'<div class="ht">'+esc(it.headline)+'</div>'
+      +(it.summary?'<div class="sum">'+esc(it.summary)+'</div>':'')
+      +vizHTML(it.viz)
+      +'<div class="meta">'+(it.tag?'<span class="tagchip">'+esc(it.tag)+'</span>':'')
+      +'<span>'+meta(it)+'</span>'+actsHTML(it.id)+'</div></div>'; }).join(""); },
+  hero:function(sec){
+    var top=sec.items[0], rest=sec.items.slice(1), h="";
+    if(top) h+='<div class="hero'+(top.seen?" read":"")+'" data-open="'+esc(top.id)+'">'
+      +(top.image?'<img class="heroimg" src="'+esc(top.image)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">':'')
+      +'<div class="ht">'+esc(top.headline)+'</div>'
+      +(top.summary?'<div class="sum">'+esc(top.summary)+'</div>':'')
+      +vizHTML(top.viz)
+      +'<div class="meta">'+meta(top)+' '+actsHTML(top.id)+'</div></div>';
+    return h+rest.map(rowHTML).join("");
+  }
+};
+function render(){
+  var f=$("feed");
+  if(!items.length){ renderEmpty(); return; }
+  var secs={},order=[];
+  items.slice().sort(function(a,b){return (+a.rank||0)-(+b.rank||0);}).forEach(function(it){
+    var s=it.section||"News";
+    if(!secs[s]){ secs[s]={name:s,template:it.template||"headline",items:[]}; order.push(s); }
+    secs[s].items.push(it);
+  });
+  var CAP=6;
+  f.innerHTML=order.map(function(s,i){
+    var sec=secs[s], fn=TPL[sec.template]||TPL.headline;
+    var total=sec.items.length; sec.items=sec.items.slice(0,CAP);
+    return '<div class="section" style="--acc:'+ACCENTS[i%ACCENTS.length]+'">'
+      +'<div class="sechead"><span class="bar"></span><b>'+esc(sec.name)+'</b>'
+      +'<span class="n">'+sec.items.length+(total>CAP?" +"+(total-CAP)+" more":"")+'</span></div>'+fn(sec)+'</div>';
+  }).join("");
+}
+function renderEmpty(){
+  $("feed").innerHTML='<div class="empty"><div class="big">📰</div><b>No news yet.</b>'
+    +'<p>This feed is filled by your Claude pipeline.<br>Ask Claude for a news update '
+    +'(WhatsApp works), or run<br><code>python tools/news_pipeline.py --push</code> on your PC.</p></div>';
+}
+document.body.addEventListener("click",function(e){
+  var b=e.target.closest("[data-fav]"); if(b){ var it=items.find(function(x){return x.id===b.getAttribute("data-fav");}); if(it)toggleFav(it,e); return; }
+  var r=e.target.closest("[data-read]"); if(r){ var it2=items.find(function(x){return x.id===r.getAttribute("data-read");}); if(it2)toggleRead(it2,e); return; }
+  var d=e.target.closest("[data-dismiss]"); if(d){ e.stopPropagation(); var it4=items.find(function(x){return x.id===d.getAttribute("data-dismiss");}); if(it4)dismiss(it4); return; }
+  var o=e.target.closest("[data-open]"); if(o){ var it3=items.find(function(x){return x.id===o.getAttribute("data-open");}); if(it3)openArt(it3); }
+});
+["api","tok"].forEach(function(id){ $(id).value=ls.get(id,""); $(id).addEventListener("input",function(){ ls.set(id,$(id).value); }); });
+fetchItems(); setInterval(fetchItems, 60000);
+</script>
+</body>
+</html>
