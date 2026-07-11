@@ -1,0 +1,24 @@
+{
+  "title": "Podcasts",
+  "collection": "podcasts",
+  "readOnly": true,
+  "control": "control.html",
+  "fields": [
+    { "key": "show",      "label": "Show",      "type": "text" },
+    { "key": "title",     "label": "Episode",   "type": "text" },
+    { "key": "notes",     "label": "Show notes","type": "text" },
+    { "key": "audio",     "label": "Audio",     "type": "audio" },
+    { "key": "duration",  "label": "Length",    "type": "text" },
+    { "key": "published", "label": "Published", "type": "text" },
+    { "key": "image",     "label": "Art",       "type": "image" },
+    { "key": "section",   "label": "Section",   "type": "text" },
+    { "key": "template",  "label": "Template",  "type": "text" },
+    { "key": "rank",      "label": "Rank",      "type": "number" },
+    { "key": "pos",       "label": "Position",  "type": "number" }
+  ],
+  "row": { "title": "title", "badge": "show" },
+  "detail": ["title", "image", "duration", "audio", "notes"],
+  "actions": { "add": false, "check": true, "fav": true, "delete": true },
+  "sort": { "key": "rank", "dir": "asc" },
+  "refresh": 60
+}
