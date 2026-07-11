@@ -40,9 +40,19 @@ time you run it by hand is after editing a config directly. `tools/status.py` wa
 **Only apps listed in `registry.json` are served**; an `apps/<slug>/` folder with no registry entry
 is an inactive **reference pattern** (e.g. `places`, `watch`) — copy/register it to activate.
 
-> Two launchers, on purpose: **`app/index.html`** = local dev (relative paths, you type the API
-> URL). **`worker/public/index.html`** = production, served by the Worker (same-origin API, password
-> only). Don't copy one over the other; `sync_public.py` only touches app configs, never `index.html`.
+> ONE launcher source, two outputs (since 2026-07-11): edit **`app/index.html`** only — it
+> carries runtime `PROD` branches, and `tools/sync_public.py` GENERATES
+> **`worker/public/index.html`** from it by flipping the single `var PROD=false;` line
+> (same-origin API, `/apps/` registry path, password-only setup). Never hand-edit the
+> generated file; `check.py`/the verify hook flag any divergence.
+
+### Build queue — line up several apps, work through them unattended (owner 2026-07-11)
+When the user has more than one app in mind, use **`python tools/build_queue.py`** as the
+durable backlog: `add "<idea>"` enqueues, `list` shows it, `next` prints the next PENDING
+item as JSON. Work one at a time: `start <id>` → run the FULL loop below for it (Define →
+build → evaluate → deploy → announce) → `done <id> <slug>` → `next` again, until the queue
+is empty. Announce each app as it goes live (bridge events channel if listening). The
+queue file is git-ignored (an idea can hint at personal taste — template-level rule).
 
 ### The loop is a STATE MACHINE — you own the transitions, the user never asks "what's next"
 Every app is always in exactly one state, computed from artifacts on disk (like `git status`):
@@ -66,6 +76,12 @@ Every app is always in exactly one state, computed from artifacts on disk (like 
   times** before involving the user. If it's still red, stop with a short **blocker report**: what
   failed, what you tried, and the one question/permission that unblocks it. Never end a turn with a
   silent failure, and never ask before you've spent your own attempts.
+- **Factory metrics are part of the loop (owner rule 2026-07-11).** This repo is an app
+  factory: the README carries a metrics table (apps built, time-to-build, improvement
+  activity, findings). Run **`python tools/metrics.py --readme`** at the end of every
+  build/improve loop (with CLEAN, before the COMMIT ask) — it derives times from the
+  loop's own artifacts (`acceptance.md` → `verdict.md` → later commits; measured values
+  persist in `app-metrics.json`), so nothing is hand-logged.
 - **Clean & commit is part of the loop, not an afterthought.** Before proposing a commit, run
   **`python tools/commit_prep.py`**: it hard-fails on hygiene (a real `database_id` in
   wrangler.toml, tracked secret files, credential-looking strings or stray UUIDs in dirty files,
@@ -93,8 +109,25 @@ prompts. Concretely:
 - Don't end a turn with "want me to…?" when a sensible default exists — do the default and report it.
 - The only legitimate up-front ask: if the environment isn't ready (not logged in / no app password)
   or you lack the `Bash(python tools/deploy.py)` permission, surface that **once at the beginning**,
-  then run to completion. (After publishing, revert `worker/wrangler.toml`'s `database_id` to the
-  placeholder so no personal id ships — `deploy.py` re-links it on the next run.)
+  then run to completion. (The personal `database_id` lives in the git-ignored `push.env`
+  (`D1_DATABASE_ID=…`); `deploy.py` injects it into `wrangler.toml` only while deploying and
+  restores the placeholder automatically. **Loop pattern: credentials/ids never live in tracked
+  files** — `check.py` and `commit_prep.py` both gate on it.)
+
+### The PRIVATE profile personalizes every app (owner 2026-07-11)
+The kit keeps one user profile in the D1 **`profile` collection** (behind the app
+password, cross-device, **never in the repo** — committed files hold only generic
+defaults). It is filled by **AI interview** (the setup wizard's Profile section, or any
+chat: "track football" → update the scope), not by forms. Manage it with
+**`python tools/profile.py get|set|delete`** (creds from push.env). **Before any Define
+round, read the profile** — apps should come out personal without re-asking what the
+profile already knows; pipelines prefer their profile scope and fall back to the
+committed template (see `tools/news_pipeline.py`).
+**Repo = template level ONLY (hard rule):** nothing committed may contain — or allow
+deriving — the user's identity or tastes. That includes generated artifacts: seed/sample
+data for an app must be produced in template mode (`news_pipeline.py --template`), never
+from the profile; personal pipeline runs stage in git-ignored `exports/`. When in doubt,
+`git grep` the personal terms before proposing a commit.
 
 ### Define first — 2–3 important questions, then a per-surface plan, then build
 **Don't run with the idea.** A precise, *testable* definition and an explicit surface plan are what
@@ -287,6 +320,9 @@ python tools/push.py <coll> --file data.json      # feed a read-only display (br
 python tools/qr.py "<name>" "<launcher-url>"      # QR to add the app to the glasses in one tap (needs `pip install segno`)
 python tools/check.py            # static: validate configs + launcher JS syntax + sync
 python tools/report.py <slug>    # END-OF-LOOP report: features + spec + tests + try-it QR + share/star
+python tools/metrics.py --readme # factory metrics table (apps, build/improve times) -> README block
+python tools/profile.py get      # the PRIVATE user profile (D1, AI-interviewed) — read before Define rounds
+python tools/build_queue.py list # the app-build backlog: add/list/next/start/done — work through it unattended
 python tools/flowtest.py <slug>  # runtime hard gate: user-flow as API assertions; needs a Worker
 python tools/evaluate.py <slug>  # full gate: flowtest (hard) + agent-judge checklist (soft) -> verdict.md
 runners/setup_repo.bat           # secret-scan + publish (+ mark as template)

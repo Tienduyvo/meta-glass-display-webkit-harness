@@ -11,6 +11,77 @@ changes should be human-reviewed before they ship.
 cheaply (no-build rule) stay as human-eyeballed lines in an app's `acceptance.md` / `verdict.md`
 (the soft gate), not brittle end-to-end automation.
 
+## 2026-07-11 — private profile: AI-interviewed personalization (owner-directed)
+
+### Added
+- **`tools/profile.py` + the D1 `profile` collection**: one private user profile
+  (scopes: `me` + one per app) behind the app password, cross-device, **never in the
+  repo**. Filled by **AI interview** — the setup wizard's new Profile section (and any
+  chat) asks in conversation and Claude writes the rows; no forms, no "dumb config".
+  Pipelines/apps prefer their profile scope and fall back to committed generic
+  defaults: `news_pipeline` migrated first, `apps/news/interests.json` genericized
+  (personal interests moved to D1). AGENTS.md: read the profile before every Define
+  round so new apps come out personal from day one. **Gate:** the creds-hygiene rule
+  already covers the storage side (profile lives server-side, not in tracked files).
+
+## 2026-07-11 — single-source launcher (owner-approved dev-speed change)
+
+### Changed
+- **`worker/public/index.html` is now GENERATED from `app/index.html`** — the launcher
+  is one file with runtime `PROD` branches (same-origin API, `/apps/` registry path,
+  password-only setup, no dev deep-link); `tools/sync_public.py` flips the single
+  `var PROD=false;` line. Maintaining two hand-edited copies doubled every UI change
+  (measured in the 2026-07-11 sessions). **Gate:** `sync_public.drift()` (run by
+  check.py + the verify hook) fails if the served copy differs from the generated
+  output or the PROD flag isn't exactly once in the source. Edit ONLY `app/index.html`.
+
+## 2026-07-11 — from on-device testing (news session) + editing-speed fix
+
+### Fixed (kit-level, both launchers)
+- **Long titles unreadable on the glasses** → the focused row's title glides
+  left→right→left (CSS marquee, duration scaled to overflow; only the focused row
+  animates, `prefers-reduced-motion` disables it). **Gate:** human-eyeballed
+  (`apps/news/findings.md`), plus the `.mq` wrap is exercised by every list render.
+- **Glass detail couldn't scroll** (an `image` field + summary + actions exceed
+  600px and the content below was unreachable) → `#screen` scrolls in glass mode,
+  detail images capped (`.dimg` 280px), open lands at top, ↓ keeps the focused
+  action in view.
+- **D-pad → in the detail view dismisses the item and shows the next one** (apps
+  with `actions.delete`) — the glasses' "swipe away" for feed apps.
+- **verify_hook was running the full static suite + flowtest for ALL apps on every
+  HTML edit** (multi-edit restyles paid seconds per edit; flowtest is API-level and
+  can't be affected by HTML) → HTML edits now node-check just the edited file's
+  script blocks + drift (~0.75 s); configs/registry/worker.js keep the full gate.
+
+## 2026-07-11 — visual overhaul (owner: "mine looks so bad")
+
+### Changed
+- **Both launchers restyled to the GlassKit UI design language** (glasskit.app/ui, MIT;
+  design only — the kit stays single-file vanilla, no React): layered translucent
+  surfaces (`rgba(255,255,255,.08)→.028` fills, 1px white edges), gradient **icon
+  plates** behind the emoji (six ~150° palettes, `accent` config overrides), `#4c8dff`
+  focus glow, caps-tracked dim footer labels, tabular numerals, sub-200ms ease-out
+  motion with a `prefers-reduced-motion` fallback. Their platform audit's finding
+  adopted: premium app-UI surfaces over literal see-through minimalism.
+- **Glasses launcher pages the app grid by 6** (2×3) with a page indicator — the old
+  grid clipped at 8+ apps on the 600×600 display. **Gate:** human-eyeballed line in
+  `apps/news/verdict.md` (screenshot at 8 apps shows page 1/2, nothing cut off);
+  UI-only, per the no-brittle-e2e convention.
+
+## 2026-07-11 — owner rule during the news-app build (WhatsApp-driven session)
+
+### Changed
+- **Creds/ids never live in tracked files (loop pattern).** The personal D1 `database_id`
+  used to be written into the tracked `worker/wrangler.toml` by `deploy.py` and manually
+  reverted after publishing — one forgotten revert away from shipping it. Now the id's
+  only home is the git-ignored `push.env` (`D1_DATABASE_ID=…`); `deploy.py` injects it
+  into `wrangler.toml` just for the deploy and restores the placeholder in a `finally`
+  (legacy checkouts with a real id in the toml are auto-migrated). **Gate:**
+  `tools/check.py check_no_tracked_creds` — runs via the verify hook on every config
+  edit — fails on a real id in the toml, on a cred file (`push.env`, `.env`,
+  `worker/.dev.vars`, `.claude/settings.local.json`) missing from `.gitignore`, or on
+  one being git-tracked. `commit_prep.py` keeps its commit-time check as the backstop.
+
 ## 2026-07-09 — from user feedback on live testing (daily-ritual session)
 
 ### Fixed
