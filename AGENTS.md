@@ -81,7 +81,11 @@ Every app is always in exactly one state, computed from artifacts on disk (like 
   activity, findings). Run **`python tools/metrics.py --readme`** at the end of every
   build/improve loop (with CLEAN, before the COMMIT ask) — it derives times from the
   loop's own artifacts (`acceptance.md` → `verdict.md` → later commits; measured values
-  persist in `app-metrics.json`), so nothing is hand-logged.
+  persist in `app-metrics.json`), so nothing is hand-logged. **Also record token spend +
+  model per app** (owner 2026-07-11 — tokens aren't in any git artifact):
+  `python tools/metrics.py tokens <slug> <model> <build_tokens> [fix_tokens]` at the end
+  of a build (and after fix rounds; fix tokens accumulate). Estimates are fine — label
+  them as such.
 - **Clean & commit is part of the loop, not an afterthought.** Before proposing a commit, run
   **`python tools/commit_prep.py`**: it hard-fails on hygiene (a real `database_id` in
   wrangler.toml, tracked secret files, credential-looking strings or stray UUIDs in dirty files,
@@ -238,6 +242,15 @@ Video **playback** is device-limited (128MB, additive display) — treat `video`
 
 **Testing-driven improvement.** Once the app is live, invite the user to actually *use* it — real
 usage on a real phone/glasses finds what the automated gates can't.
+
+**A reported bug hardens the REPO, not just the app (owner rule 2026-07-11).** When the
+user reports a bug, don't only patch the app: first write a **regression test that
+reproduces it** in `tools/tests/` and confirm it **FAILS on the current code** (that
+proves the test catches the real bug), then fix and confirm it passes. Each reported bug
+leaves the repo permanently smarter. The suite runs in CI and is a fast, deterministic
+gate — prefer a unit test on a pipeline/parse helper over re-finding the bug by hand.
+(This is how the news CDATA bug was found latent in `news_pipeline.strip_tags` — the
+podcast-feed fix hadn't been applied there; the test caught it.)
 
 **Intake FIRST — user findings are loop state, not conversation.** The moment the user reports
 something broken/confusing, append it as a `- [ ] YYYY-MM-DD <finding>` line to

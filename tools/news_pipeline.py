@@ -48,7 +48,11 @@ def fetch(url, timeout=15):
 
 
 def strip_tags(s):
-    s = re.sub(r"<[^>]+>", " ", s or "")
+    # unwrap CDATA before stripping tags — otherwise `<[^>]+>` swallows a
+    # `<![CDATA[text]]>` block whole, text included (regression test locks this;
+    # same class of bug that blanked a 1030-item podcast feed).
+    s = re.sub(r"<!\[CDATA\[(.*?)\]\]>", r"\1", s or "", flags=re.S)
+    s = re.sub(r"<[^>]+>", " ", s)
     return re.sub(r"\s+", " ", html.unescape(s)).strip()
 
 

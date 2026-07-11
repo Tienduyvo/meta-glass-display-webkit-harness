@@ -62,6 +62,12 @@ def artifact_ts(path):
     return (int(os.path.getmtime(full)), "mtime") if os.path.exists(full) else (0, "")
 
 
+def _ktok(v):
+    if not v:
+        return "?"
+    return "%.0fk" % (v / 1000.0) if v >= 1000 else str(int(v))
+
+
 def fmt_dur(seconds):
     if seconds <= 0:
         return "—"
@@ -113,6 +119,13 @@ def collect():
         improves = touch_ts_after("apps/%s/" % slug, ver_ts) if ver_ts else []
         improve_s = (max(improves) - min(improves)) if len(improves) > 1 else 0
         open_f, closed_f = findings_counts(slug)
+        # Tokens + model come from the ledger (owner 2026-07-11): they aren't in any
+        # git artifact, so the builder records them per app with `metrics.py tokens`.
+        led = ledger.get(slug, {})
+        tok = led.get("tokens")
+        model = led.get("model", "")
+        tok_cell = "%s (build) / %s (fix)" % (_ktok(tok.get("build")), _ktok(tok.get("fix"))) \
+            if isinstance(tok, dict) else "—"
         # Durations only, no calendar dates (owner rule 2026-07-11): "when" an app was
         # built is personal schedule information and stays out of the README.
         rows.append({
@@ -121,6 +134,8 @@ def collect():
             "improve": ("%s · %d commit(s)" % (fmt_dur(improve_s), len(improves)))
                        if improves else "—",
             "findings": "%d open / %d closed" % (open_f, closed_f),
+            "tokens": tok_cell,
+            "model": model or "—",
         })
     if ledger_dirty:
         tmp = LEDGER + ".tmp"
@@ -131,11 +146,12 @@ def collect():
 
 
 def table_md(rows):
-    lines = ["| App | Time to build | Improvement | Findings |",
-             "|---|---|---|---|"]
+    lines = ["| App | Time to build | Improvement | Tokens | Model | Findings |",
+             "|---|---|---|---|---|---|"]
     for r in rows:
-        lines.append("| %s | %s | %s | %s |"
-                     % (r["app"], r["build"], r["improve"], r["findings"]))
+        lines.append("| %s | %s | %s | %s | %s | %s |"
+                     % (r["app"], r["build"], r["improve"], r["tokens"],
+                        r["model"], r["findings"]))
     lines.append("")
     lines.append("**%d apps** in the launcher · times derived from the loop's artifacts "
                  "(`acceptance.md` → `verdict.md` → later commits), updated by "
@@ -160,7 +176,37 @@ def update_readme(md):
     os.replace(tmp, README)
 
 
+def record_tokens(slug, model, build_tok, fix_tok):
+    """Record per-app model + token spend into the ledger (owner 2026-07-11: the README
+    tracks tokens used to build/fix and which model). Tokens aren't in any git artifact,
+    so the builder logs them here at the end of a build/fix. Additive: fix tokens
+    accumulate across improvement rounds."""
+    try:
+        ledger = json.load(open(LEDGER, encoding="utf-8"))
+    except Exception:
+        ledger = {}
+    row = ledger.setdefault(slug, {})
+    if model:
+        row["model"] = model
+    tok = row.setdefault("tokens", {})
+    if build_tok is not None:
+        tok["build"] = int(build_tok)
+    if fix_tok is not None:
+        tok["fix"] = int(tok.get("fix") or 0) + int(fix_tok)
+    tmp = LEDGER + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(ledger, f, indent=1)
+    os.replace(tmp, LEDGER)
+    print("recorded %s: model=%s build=%s fix+=%s" % (slug, model, build_tok, fix_tok))
+
+
 def main(argv):
+    # `tokens <slug> <model> [build_tokens] [fix_tokens]` — log spend, then refresh.
+    if argv and argv[0] == "tokens" and len(argv) >= 3:
+        record_tokens(argv[1], argv[2],
+                      int(argv[3]) if len(argv) > 3 and argv[3] else None,
+                      int(argv[4]) if len(argv) > 4 and argv[4] else None)
+        argv = ["--readme"]
     rows = collect()
     md = table_md(rows)
     print(md)

@@ -53,20 +53,20 @@ do. → [**How it works & setup**](docs/whatsapp-bridge.md) · details
 ## 🏭 App factory metrics
 
 <!-- app-metrics:start -->
-| App | Time to build | Improvement | Findings |
-|---|---|---|---|
-| Buy List | pre-tracking | — | 0 open / 0 closed |
-| To-Do | pre-tracking | — | 0 open / 0 closed |
-| Wallpaper | pre-tracking | 14h32m · 2 commit(s) | 0 open / 1 closed |
-| Presentation Timer | pre-tracking | 14h32m · 2 commit(s) | 0 open / 2 closed |
-| Flashcards | pre-tracking | — | 0 open / 0 closed |
-| Stencil | pre-tracking | 7h50m · 2 commit(s) | 0 open / 1 closed |
-| Daily Ritual | pre-tracking | — | 0 open / 9 closed |
-| News | 2h23m | — | 0 open / 12 closed |
-| Podcasts | 13m | — | 0 open / 0 closed |
-| Audiobooks | 14m | — | 0 open / 0 closed |
-| Memes | 10m | — | 0 open / 0 closed |
-| Protocol | 10m | — | 0 open / 0 closed |
+| App | Time to build | Improvement | Tokens | Model | Findings |
+|---|---|---|---|---|---|
+| Buy List | pre-tracking | — | — | — | 0 open / 0 closed |
+| To-Do | pre-tracking | — | — | — | 0 open / 0 closed |
+| Wallpaper | pre-tracking | 14h32m · 2 commit(s) | — | — | 0 open / 1 closed |
+| Presentation Timer | pre-tracking | 14h32m · 2 commit(s) | — | — | 0 open / 2 closed |
+| Flashcards | pre-tracking | — | — | — | 0 open / 0 closed |
+| Stencil | pre-tracking | 7h50m · 2 commit(s) | — | — | 0 open / 1 closed |
+| Daily Ritual | pre-tracking | — | — | — | 0 open / 9 closed |
+| News | 2h23m | — | 145k (build) / 90k (fix) | claude-fable-5 | 0 open / 12 closed |
+| Podcasts | 13m | — | 70k (build) / 20k (fix) | claude-fable-5 | 0 open / 0 closed |
+| Audiobooks | 14m | — | 65k (build) / ? (fix) | claude-fable-5 | 0 open / 0 closed |
+| Memes | 10m | — | 40k (build) / ? (fix) | claude-fable-5 | 0 open / 0 closed |
+| Protocol | 10m | — | 55k (build) / ? (fix) | claude-fable-5 | 0 open / 0 closed |
 
 **12 apps** in the launcher · times derived from the loop's artifacts (`acceptance.md` → `verdict.md` → later commits), updated by `python tools/metrics.py --readme` at the end of every build loop.
 <!-- app-metrics:end -->

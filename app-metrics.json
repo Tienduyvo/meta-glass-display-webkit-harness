@@ -1,17 +1,39 @@
 {
  "news": {
-  "build_seconds": 8606
+  "build_seconds": 8606,
+  "model": "claude-fable-5",
+  "tokens": {
+   "build": 145000,
+   "fix": 90000
+  }
  },
  "podcasts": {
-  "build_seconds": 779
+  "build_seconds": 779,
+  "model": "claude-fable-5",
+  "tokens": {
+   "build": 70000,
+   "fix": 20000
+  }
  },
  "audiobooks": {
-  "build_seconds": 816
+  "build_seconds": 816,
+  "model": "claude-fable-5",
+  "tokens": {
+   "build": 65000
+  }
  },
  "memes": {
-  "build_seconds": 586
+  "build_seconds": 586,
+  "model": "claude-fable-5",
+  "tokens": {
+   "build": 40000
+  }
  },
  "protocol": {
-  "build_seconds": 624
+  "build_seconds": 624,
+  "model": "claude-fable-5",
+  "tokens": {
+   "build": 55000
+  }
  }
 }
