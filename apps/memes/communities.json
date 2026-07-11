@@ -1,0 +1,8 @@
+{
+  "_comment": "DEFAULT TEMPLATE ONLY — no personal data (repo stays template-level). The user's real communities live in the PRIVATE profile (scope 'memes', via tools/profile.py). Entries are subreddit names served through the keyless meme-api.com Reddit lane; 'lemmy' entries are community@instance for the open Lemmy API backup.",
+  "communities": ["memes", "wholesomememes"],
+  "lemmy": ["memes@lemmy.ml"],
+  "per_community": 4,
+  "viral_pool": ["memes", "dankmemes"],
+  "discovery_ratio": 0.25
+}

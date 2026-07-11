@@ -1,0 +1,20 @@
+{
+  "title": "Memes",
+  "collection": "memes",
+  "readOnly": true,
+  "fullscreen": true,
+  "fields": [
+    { "key": "title",     "label": "Title",     "type": "text" },
+    { "key": "image",     "label": "Meme",      "type": "image" },
+    { "key": "ups",       "label": "Upvotes",   "type": "number" },
+    { "key": "community", "label": "Community", "type": "text" },
+    { "key": "section",   "label": "Section",   "type": "text" },
+    { "key": "template",  "label": "Template",  "type": "text" },
+    { "key": "rank",      "label": "Rank",      "type": "number" }
+  ],
+  "row": { "title": "title", "badge": "ups" },
+  "detail": ["title", "image", "ups", "community"],
+  "actions": { "add": false, "check": true, "fav": true, "delete": true },
+  "sort": { "key": "rank", "dir": "asc" },
+  "refresh": 120
+}
