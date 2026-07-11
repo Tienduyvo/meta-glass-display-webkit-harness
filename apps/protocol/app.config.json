@@ -1,0 +1,16 @@
+{
+  "title": "Protocol",
+  "collection": "protocol",
+  "fields": [
+    { "key": "n",       "label": "Step",    "type": "number" },
+    { "key": "step",    "label": "Instruction", "type": "text" },
+    { "key": "reagent", "label": "Reagent", "type": "text" },
+    { "key": "amount",  "label": "Amount",  "type": "text" },
+    { "key": "hazard",  "label": "Hazard (GHS)", "type": "text" },
+    { "key": "note",    "label": "Note",    "type": "text" }
+  ],
+  "row": { "title": "step", "badge": "n" },
+  "detail": ["step", "reagent", "amount", "hazard", "note"],
+  "actions": { "add": true, "check": true, "fav": true, "delete": true },
+  "sort": { "key": "n", "dir": "asc" }
+}
