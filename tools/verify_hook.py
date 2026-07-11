@@ -59,19 +59,48 @@ def main():
     py = sys.executable or "python"
     problems = []
 
-    r = subprocess.run([py, os.path.join(ROOT, "tools", "check.py")],
-                       capture_output=True, text=True, cwd=ROOT)
-    if r.returncode != 0:
-        problems.append("check.py (static) failed:\n" + (r.stdout or "") + (r.stderr or ""))
-
-    if _worker_up():
-        env = dict(os.environ, GLASS_API="http://localhost:8787/api", GLASS_TOKEN=_dev_token())
-        m = re.match(r"apps/([^/]+)/", rel)
-        args = [m.group(1)] if m else []  # one app, or all registered
-        r = subprocess.run([py, os.path.join(ROOT, "tools", "flowtest.py")] + args,
-                           capture_output=True, text=True, cwd=ROOT, env=env)
+    is_html = rel.endswith(".html")
+    if is_html:
+        # FAST PATH (multi-edit sessions were paying ~seconds per edit): an HTML edit
+        # can only break its own script syntax — extract its <script> blocks and
+        # node-check just this one file. flowtest is API-level and can't be affected
+        # by HTML; drift is reported for app pages.
+        import tempfile
+        src = open(os.path.join(ROOT, rel), encoding="utf-8").read()
+        js = "\n;\n".join(re.findall(r"<script[^>]*>(.*?)</script>", src, re.S))
+        tf = tempfile.NamedTemporaryFile("w", suffix=".js", delete=False,
+                                         encoding="utf-8")
+        tf.write(js); tf.close()
+        try:
+            r = subprocess.run(["node", "--check", tf.name],
+                               capture_output=True, text=True, cwd=ROOT)
+            if r.returncode != 0:
+                problems.append("%s script syntax failed:\n%s"
+                                % (rel, (r.stdout or "") + (r.stderr or "")))
+        finally:
+            os.unlink(tf.name)
+        if not problems and rel.startswith("apps/"):
+            try:
+                sys.path.insert(0, os.path.join(ROOT, "tools"))
+                import sync_public
+                if any(rel.split("/", 2)[1] in d for d in sync_public.drift()):
+                    problems.append("drift: %s differs from worker/public — run tools/sync_public.py" % rel)
+            except Exception:
+                pass
+    else:
+        r = subprocess.run([py, os.path.join(ROOT, "tools", "check.py")],
+                           capture_output=True, text=True, cwd=ROOT)
         if r.returncode != 0:
-            problems.append("flowtest (runtime) failed:\n" + (r.stdout or "") + (r.stderr or ""))
+            problems.append("check.py (static) failed:\n" + (r.stdout or "") + (r.stderr or ""))
+
+        if _worker_up():
+            env = dict(os.environ, GLASS_API="http://localhost:8787/api", GLASS_TOKEN=_dev_token())
+            m = re.match(r"apps/([^/]+)/", rel)
+            args = [m.group(1)] if m else []  # one app, or all registered
+            r = subprocess.run([py, os.path.join(ROOT, "tools", "flowtest.py")] + args,
+                               capture_output=True, text=True, cwd=ROOT, env=env)
+            if r.returncode != 0:
+                problems.append("flowtest (runtime) failed:\n" + (r.stdout or "") + (r.stderr or ""))
 
     if problems:
         sys.stderr.write("\n[verify_hook] VERIFY FAILED - fix before continuing:\n\n"

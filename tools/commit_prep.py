@@ -25,7 +25,8 @@ if hasattr(sys.stdout, "reconfigure"):
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 SECRET_FILES = ("push.env", ".dev.vars", "settings.local.json")
-SECRET_RX = re.compile(r"(?i)\b(api[_-]?key|secret|token|passw\w*)\b\s*[:=]\s*['\"]?[A-Za-z0-9_\-]{12,}")
+# `(?!\s*\()` skips code like `secret = probe_secret()` — a call expression, not a value.
+SECRET_RX = re.compile(r"(?i)\b(api[_-]?key|secret|token|passw\w*)\b\s*[:=]\s*['\"]?[A-Za-z0-9_\-]{12,}(?!\s*\()")
 UUID_RX = re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b")
 SAFE_HINTS = ("replace_with", "your_password", "localtest", "example", "placeholder")
 TEXT_EXT = (".json", ".md", ".html", ".js", ".py", ".toml", ".yml", ".yaml", ".bat", ".txt", ".sql")

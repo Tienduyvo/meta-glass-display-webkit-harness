@@ -13,9 +13,10 @@ source tree ``apps/``. This script keeps the two in sync so a change under
   the production launcher ``worker/public/index.html``).
 - prunes orphan app folders under ``worker/public/apps`` that no longer exist in ``apps/``.
 
-It does NOT touch ``index.html``: ``app/index.html`` (local dev, manual API URL)
-and ``worker/public/index.html`` (production, same-origin API + support bar) are
-intentionally different files.
+- generates ``worker/public/index.html`` from ``app/index.html`` (owner decision
+  2026-07-11 — maintaining two launcher copies by hand doubled every UI change):
+  the launcher is a SINGLE SOURCE with runtime ``PROD`` branches; this script flips
+  exactly one line (``var PROD=false`` -> ``true``). Edit only ``app/index.html``.
 
 Run by hand, or automatically from ``tools/new_app.py`` and the deploy runners:
     python tools/sync_public.py
@@ -31,6 +32,21 @@ SRC_APPS = os.path.join(ROOT, "apps")
 SRC_REG = os.path.join(SRC_APPS, "registry.json")
 PUB_APPS = os.path.join(ROOT, "worker", "public", "apps")
 PUB_REG = os.path.join(PUB_APPS, "registry.json")
+SRC_LAUNCHER = os.path.join(ROOT, "app", "index.html")
+PUB_LAUNCHER = os.path.join(ROOT, "worker", "public", "index.html")
+PROD_FLAG, PROD_ON = "var PROD=false;", "var PROD=true;"
+
+
+def gen_launcher_text():
+    """The production launcher = the dev launcher with the PROD flag flipped.
+    Fails loudly if the flag is missing/duplicated — that means app/index.html
+    was restructured and the single-source contract broke."""
+    t = open(SRC_LAUNCHER, encoding="utf-8").read()
+    n = t.count(PROD_FLAG)
+    if n != 1:
+        raise SystemExit("sync_public: expected exactly one %r in app/index.html, found %d"
+                         % (PROD_FLAG, n))
+    return t.replace(PROD_FLAG, PROD_ON, 1)
 
 
 def atomic_write(path, text):
@@ -136,6 +152,14 @@ def drift():
             d = os.path.join(PUB_APPS, name)
             if os.path.isdir(d) and name not in src_set:
                 issues.append(f"{name}: orphan folder in worker/public (not in apps/)")
+    # generated launcher (hand-edits to worker/public/index.html get flagged here)
+    try:
+        if open(PUB_LAUNCHER, encoding="utf-8").read() != gen_launcher_text():
+            issues.append("index.html: worker/public copy differs from generated (edit app/index.html, then sync)")
+    except SystemExit as e:
+        issues.append(str(e))
+    except OSError:
+        issues.append("index.html: missing in worker/public")
     return issues
 
 
@@ -180,7 +204,13 @@ def sync(verbose=True):
         atomic_write(PUB_REG, out_text)
         actions.append("wrote registry.json")
 
-    # 3) prune orphan app folders
+    # 3) generate the production launcher from the single-source dev launcher
+    gen = gen_launcher_text()
+    if not os.path.exists(PUB_LAUNCHER) or open(PUB_LAUNCHER, encoding="utf-8").read() != gen:
+        atomic_write(PUB_LAUNCHER, gen)
+        actions.append("generated index.html (PROD)")
+
+    # 4) prune orphan app folders
     if os.path.isdir(PUB_APPS):
         src_set = set(slugs)
         for name in sorted(os.listdir(PUB_APPS)):

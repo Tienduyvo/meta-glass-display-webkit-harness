@@ -106,10 +106,85 @@ def check_drift():
         print("[x] apps/ and worker/public/apps/ in sync")
 
 
+CRED_FILES = ["push.env", ".env", "worker/.dev.vars", ".claude/settings.local.json"]
+
+def check_no_tracked_creds():
+    """LOOP PATTERN (owner rule 2026-07-11): credentials/ids live ONLY in git-ignored
+    files — never in tracked ones. Standing gate: the verify hook runs this on every
+    config edit, so a real id parked in wrangler.toml fails immediately, not at commit."""
+    import subprocess
+    def git(*a):
+        p = subprocess.run(["git"] + list(a), cwd=ROOT, capture_output=True, text=True)
+        return p.returncode, (p.stdout or "").strip()
+    rc, _ = git("rev-parse", "--git-dir")
+    if rc != 0:
+        print("[i] not a git repo — skipping tracked-creds gate"); return
+    bad = []
+    try:
+        t = open(os.path.join(ROOT, "worker", "wrangler.toml"), encoding="utf-8").read()
+        m = re.search(r'database_id\s*=\s*"([^"]*)"', t)
+        if m and "REPLACE" not in m.group(1):
+            bad.append("worker/wrangler.toml holds a real database_id (belongs in push.env; deploy.py injects it)")
+    except OSError:
+        pass
+    for f in CRED_FILES:
+        if not os.path.exists(os.path.join(ROOT, f)):
+            continue
+        if git("check-ignore", "-q", f)[0] != 0:
+            bad.append("%s exists but is NOT gitignored — add it to .gitignore" % f)
+        if git("ls-files", "--error-unmatch", f)[0] == 0:
+            bad.append("%s is TRACKED by git — git rm --cached it" % f)
+    if bad:
+        print("[!] creds hygiene: " + "; ".join(bad))
+        fails.append("creds: " + "; ".join(bad))
+    else:
+        print("[x] creds only in git-ignored files (wrangler.toml placeholder intact)")
+
+
+def check_no_personal_data():
+    """LOOP PATTERN (owner rule 2026-07-11): the repo must not contain — or allow
+    deriving — the user's identity/tastes. Reads a git-ignored `.personal-guard`
+    denylist (one term per line; itself never committed) and fails if any term appears
+    in a git-TRACKED file. Silently skips when the guard file is absent (fresh forks)."""
+    import subprocess
+    guard = os.path.join(ROOT, ".personal-guard")
+    if not os.path.exists(guard):
+        return  # no denylist configured (e.g. a fork) — nothing to enforce
+    terms = [l.strip() for l in open(guard, encoding="utf-8")
+             if l.strip() and not l.startswith("#")]
+    if not terms:
+        return
+    # committed + staged (about-to-be-committed) files — catch a leak BEFORE it lands
+    p = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True)
+    if p.returncode != 0:
+        print("[i] not a git repo — skipping personal-data gate"); return
+    st = subprocess.run(["git", "diff", "--cached", "--name-only"], cwd=ROOT,
+                        capture_output=True, text=True)
+    files = set(p.stdout.splitlines()) | set(st.stdout.splitlines())
+    tracked = [f for f in files if f and f != ".personal-guard"]
+    hits = []
+    low = [t.lower() for t in terms]
+    for f in tracked:
+        fp = os.path.join(ROOT, f)
+        try:
+            body = open(fp, encoding="utf-8", errors="ignore").read().lower()
+        except OSError:
+            continue
+        for t, tl in zip(terms, low):
+            if tl in body:
+                hits.append("%s in %s" % (t, f))
+    if hits:
+        print("[!] personal data in tracked files: " + "; ".join(hits[:8]))
+        fails.append("personal-data: " + "; ".join(hits[:8]))
+    else:
+        print("[x] no personal-guard term in any tracked file (%d term(s) checked)" % len(terms))
+
+
 def main():
     print("\nmeta-glass-display-webkit-harness — check")
     print("-----------------------------------------")
     check_json(); check_launchers(); check_field_types(); check_drift()
+    check_no_tracked_creds(); check_no_personal_data()
     print()
     if fails:
         print("FAIL (%d):" % len(fails))

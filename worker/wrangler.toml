@@ -8,8 +8,9 @@ directory = "./public"
 binding = "ASSETS"
 run_worker_first = true
 
-# D1 (serverless SQLite). Create it once, then paste the id printed by `wrangler d1 create`:
-#   npx wrangler d1 create glass_crud
+# D1 (serverless SQLite). Your real database_id lives in the git-ignored push.env
+# (D1_DATABASE_ID=…) — `python tools/deploy.py` injects it here only while deploying and
+# restores this placeholder right after, so no personal id is ever committed.
 [[d1_databases]]
 binding = "DB"
 database_name = "glass_crud"
